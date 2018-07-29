@@ -6,12 +6,16 @@
 #include "monitor.h"
 #include "lcd.h"
 
+/* volatile がないとgccの最適化に引っかかっておかしくなる */
+extern volatile uint8_t bUnixtimeflag;
+
 static uint8_t buf[17];
+static uint8_t siobuf[17];
 
 /*
  * 計測値を固定小数点形式の文字列に変換してその先頭を返す
  */
-unsigned char * num2str( int n )
+uint8_t *num2str (int n)
 {
     int i, f = 0;
     if( n < 0 ){
@@ -43,8 +47,9 @@ unsigned char * num2str( int n )
  */
 int read_lm61( void )
 {
-    unsigned int i, d = 0;
-
+    int i, d = 0;
+    
+    AD.ADCSR.BYTE = 1;              /* 単一モード、AN1 */
     for( i = 0; i <= 15; i++ ){          /* 16回読んで平均を得る */
         AD.ADCSR.BIT.ADST = 1;
         while( ! AD.ADCSR.BIT.ADF );
@@ -67,16 +72,105 @@ int read_lm61( void )
     return d;
 }
 
+uint32_t atol (uint8_t *b)
+{
+    uint32_t l;
+    
+    l = 0;
+    while (*b != '\0') {
+        l *= 10;
+        if (*b >= '0' && * b <= '9') {
+            l += (*b - 0x30);
+        }
+        b++;
+    }
+    return l;
+}
+
+char * itos (uint16_t n, uint8_t *b, int digit)
+{
+    uint8_t b2[6], *pos;
+    int i;
+    pos = &b2[5];
+    *pos-- = '\0';
+    
+    for (i=0; i < digit; i++) {
+        *pos-- = (n % 10 +'0');
+        n = n / 10;
+    }
+    while (*++pos != '\0') {
+        *b++ = *pos;
+    }
+    return b;
+}
+
+
+void unixtime2str (uint32_t a, uint8_t blink)
+{
+    static uint8_t month[] = {31,28,31,30, 31,30,31,31, 30,31,30,31};
+    uint16_t min;
+    uint32_t hour, day, year, leaps, tm;
+    uint16_t c_year,  tmp,  c_day;
+    uint8_t c_month, c_hour, c_min, c_sec;
+    int i;
+    uint8_t *p;
+    
+    min  = 60;
+    hour = min * 60;
+    day  = hour * 24;
+    year = day * 365;
+    
+    a += hour * 9;  // UTC -> JST
+
+    c_year = a / year;
+    leaps = (c_year - 2) / 4;   // 今年迄の閏年の数
+    tmp = (uint16_t)((a % year) / day - leaps);
+    c_day = tmp;
+    c_year += 1970;
+    month[1] = 28;
+    if (c_year % 4 == 0) {
+        if (c_year % 100 != 0) {
+            month[1] = 29;
+        }
+        else if (c_year % 400 == 0) {
+            month[1] = 29;
+        }
+    }
+    for (i=0; i < 11; i++) {
+        if (c_day <= month[i]) {
+            c_month = i + 1;
+            break;
+        }
+        c_day -= month[i];
+    }
+    
+    tm = a - (c_year - 1970)* year - ((uint32_t)tmp+leaps) * day;
+    c_hour = (uint8_t)(tm / (uint32_t)hour);
+    c_min = (uint8_t)(tm % (uint32_t)hour / (uint32_t)min);
+    //~ c_sec = tm % hour % min;
+    
+    // yyyy-mm-dd hh:mm
+    p = buf;
+    p = itos (c_year, p, 4);
+    *p++ = '-';
+    p = itos (c_month, p, 2);
+    *p++ = '-';
+    p = itos (c_day, p, 2);
+    *p++ = ' ';
+    p = itos (c_hour, p, 2);
+    *p++ = blink ? ':':' ';
+    p = itos (c_min, p, 2);
+    *p = '\0';
+}    
+
+
 /*
  * メインループ
  */
-//~ void main(uint16_t ac)      /* for debug */
 void main(void)
 {
-    uint8_t c, *s;
+    uint8_t c, *s, blink;
     int pos;
-
-    //~ if (ac==0) return;      /* for debug */
     
     DI();
     AD.ADCSR.BYTE = 8;          /* A/D 割り込み無、単一モード 70ステート */
@@ -95,33 +189,44 @@ void main(void)
     EI();
     i2c_setup();
     lcd_setup();
-    lcd_puts(0,"Ready.");
-    
-    for(;;){
-        /* 入力待ち
-         * 先頭から１６文字だけ読んで残りは捨てる 
-         */
-        pos = 0;
-        while( (c = sci_getchar()) != '\n' ){
-            if( pos < sizeof(buf) - 1 ) buf[pos++] = c;
+    lcd_clr();
+    wait_ms(2); /* about 2mS */
+    lcd_puts( 0, "H8/Tiny Ready." );
+    pos = 0;
+    blink = 0;
+
+    for (;;) {
+        /* 割り込みを使わないで、各イベントを拾いながら処理を進める */
+        if (bUnixtimeflag) {
+            /* 1秒ごとに表示を更新する */
+            bUnixtimeflag = 0;
+            blink ^= 1;
+            unixtime2str (gettime(), blink);
+            lcd_puts (0, buf);
+            s = num2str(read_lm61());
+            buf[7] = 0xdf; buf[8] = 'C'; buf[9] = 0x00;
+            lcd_puts (0x43, s);     /* ２行目 センタリング xx.xx℃ */
         }
-        buf[pos] = '\0';
-        lcd_clr();
-        wait_ms(2); /* about 2mS */
-        lcd_puts( 0, buf );
 
-        /*
-         * 気温を読み取ってLCDに表示し、親機に値を返す
-         */
-        AD.ADCSR.BYTE = 1;              /* 単一モード、AN1 */
-
-        //~ temp = read_lm61();
-        //~ s = num2str(temp);
-        s = num2str(read_lm61());
-        sci_puts(s);
-        sci_putchar('\n');
-        buf[7] = 0xdf; buf[8] = 'C'; buf[9] = 0x00;
-        lcd_puts( 0x43, s );            /* ２行目 センタリング xx.xx℃ */
-
+        if ((c = sci_getch()) != 0) {
+            /* 受信 */
+            if (c == '\n') c = '\0';
+            if (pos < sizeof(siobuf) - 2) {
+                siobuf[pos++] = c;
+            }
+            if ( c == '\0' ) {
+                siobuf[pos] = '\0';
+                pos = 0;
+                //~ lcd_puts (0, siobuf);   /* debug */
+                
+                settime (atol (siobuf));
+                /*
+                 * 気温を読み取って親機に値を返す
+                 */
+                s = num2str(read_lm61());
+                sci_puts(s);
+                sci_putchar('\n');
+            }
+        }
     }
 }

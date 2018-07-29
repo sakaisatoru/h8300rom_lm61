@@ -134,13 +134,8 @@ void int_sci3(void)
  */
 unsigned char sci_getchar( void )
 {
-    do{
-        if( SCI3.SSR.BYTE & 0x38 ){
-            /* RDRFもろともクリア */
-            SCI3.SSR.BYTE |= (0x38|0x40);
-            SCI3.SSR.BYTE ^= (0x38|0x40);
-        }
-    }while( !SCI3.SSR.BIT.RDRF );
+    while (!(SCI3.SSR.BYTE & 0x40));
+    SCI3.SSR.BYTE &= 0x87;
     return SCI3.RDR;
 }
 
@@ -149,12 +144,13 @@ unsigned char sci_getchar( void )
  */
 unsigned char sci_getch( void )
 {
-    if( SCI3.SSR.BYTE & 0x38 ){
-        /* RDRFもろともクリア */
-        SCI3.SSR.BYTE |= (0x38|0x40);
-        SCI3.SSR.BYTE ^= (0x38|0x40);
+    if (SCI3.SSR.BYTE & 0x40) {
+        SCI3.SSR.BYTE &= 0x87;
+        return SCI3.RDR;
     }
-    return ( SCI3.SSR.BIT.RDRF )? SCI3.RDR : 0;
+    else {
+        return 0;
+    }
 }
 
 #else

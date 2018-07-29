@@ -5,7 +5,7 @@
     .extern     _monitor
     .extern     _showregs
     .extern     _saveregs, _saveccr, _savepc
-    .extern     _bSubSec, _bSec, _bMin, _bHour;
+;    .extern     _bSubSec, _bSec, _bMin, _bHour;
 
     .section    .text
     .global     _int_break, _jsr
@@ -196,54 +196,24 @@ _int_break_1:
 ;       経過時間はBCDで格納
 ;
 _int_tima:
-    push.w      r2
-
+    push.l      er2
     mov.b       @_bSubSec, r2l          ; bSubSec を 4回数える
     inc.b       r2l
     mov.b       r2l, @_bSubSec
     and.b       #3, r2l
-    bne         _int_tima_exit
-
-_int_tima_sec:
-    mov.b       @_bSec, r2l
-    add.b       #1, r2l
-    daa         r2l
-    cmp.b       #0x60, r2l
-    beq         _int_tima_min
-    mov.b       r2l, @_bSec
-    bra         _int_tima_exit
-
-_int_tima_min:
-    xor.b       r2l, r2l
-    mov         r2l, @_bSec
-    mov.b       @_bMin, r2l
-    add.b       #1, r2l
-    daa         r2l
-    cmp.b       #0x60, r2l
-    beq         _int_tima_hour
-    mov.b       r2l, @_bMin
-    bra         _int_tima_exit
-
-_int_tima_hour:
-    xor.b       r2l, r2l
-    mov         r2l, @_bMin
-    mov.b       @_bHour, r2l
-    add.b       #1, r2l
-    daa         r2l
-    cmp.b       #0x24, r2l
-    beq         _int_tima_day
-    mov.b       r2l, @_bHour
-    bra         _int_tima_exit
-
-_int_tima_day:                          ; 日付の更新は未実装
-    xor.b       r2l, r2l
-    mov.b       @_bHour, r2l
-
-_int_tima_exit:
+    bne         __int_tima_exit
+    
+    mov.b       #1, r2l                 ; コロン点滅とかに使うフラグ
+    mov.b       r2l, @_bUnixtimeflag
+    
+    mov.l       @_lUnixtime, er2
+    inc.l       #1, er2
+    mov.l       er2, @_lUnixtime
+__int_tima_exit:
     mov.b       @IRR1, r2l
     bclr        #6, r2l                 ; IRR1のIRRTA(フラグ)をクリア
     mov.b       r2l, @IRR1
-    pop.w       r2
+    pop.l       er2
     rte
 
 
@@ -253,7 +223,8 @@ _int_tima_exit:
 ;   ccr は破壊される
 ;
 _settime:
-    mov.l       er0, @_bHour
+;    mov.l       er0, @_bHour
+    mov.l       er0, @_lUnixtime
     rts
 
 ;-----------------------------------------------------------------------------
@@ -262,7 +233,8 @@ _settime:
 ;   ccr, er0 は破壊される
 ;
 _gettime:
-    mov.l       @_bHour, er0
+;    mov.l       @_bHour, er0
+    mov.l       @_lUnixtime, er0
     rts
 
 
@@ -335,44 +307,44 @@ _newline:
 
 
     .section    .data
+    ;
+    ;   一部割り込みベクタをRAM上に出している。3694f.x参照の事。
+    ;
     .global     _hook_timw
 _int_timw:
 _hook_timw:
-    .byte       0x5a
-    .byte       0x00
+    .byte       0x56        ; rte
+    .byte       0x70
     .short      0x00
 _int_timv:
 _hook_timv:
-    .byte       0x5a
-    .byte       0x00
+    .byte       0x56        ; rte
+    .byte       0x70
     .short      0x00
 _int_sci3:
 _hook_sci3:
-    .byte       0x5a
-    .byte       0x00
+    .byte       0x56        ; rte
+    .byte       0x70
     .short      0x00
 _int_iic2:
 _hook_iic2:
-    .byte       0x5a
-    .byte       0x00
+    .byte       0x56        ; rte
+    .byte       0x70
     .short      0x00
 _int_ad:
 _hook_ad:
-    .byte       0x5a
-    .byte       0x00
+    .byte       0x56        ; rte
+    .byte       0x70
     .short      0x00
 
-
     .section    .bss
-_bHour:
-    .byte       0
-_bMin:
-    .byte       0
-_bSec:
-    .byte       0
+    .global     _bUnixtimeflag
 _bSubSec:
     .byte       0
-
+_bUnixtimeflag:
+    .byte       0
+_lUnixtime:
+    .long       0
 
 
 

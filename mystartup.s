@@ -26,6 +26,9 @@ _start:
 _start_top:
     orc.b       #0x80, ccr              ; DI
     mov.w       #_stack, sp
+    ;
+    ; 初期化されないデータは 0 でクリアされる
+    ;
 _bss_init:
     mov.l       #_bss_start, er2
     mov.l       #_end, er3
@@ -36,17 +39,22 @@ _bss_init_l1:
     mov.w       r0, @er2
     adds        #2, er2
     bra         _bss_init_l1
+    ;
+    ; 初期化されるデータの初期値の転送
+    ;
 _data_init:
-    mov.l       #0x56700000, er0        ; 一部割り込みベクタの初期化
-    mov.w       #_hook_timw, r2
-    extu.l      er2
-    mov.b       #5, r3l
-_data_init_2:
-    mov.l       er0, @er2
-    adds        #4, er2
-    dec.b       r3l
-    bne         _data_init_2
-    ;mov.w       #0, r0                 ; for debug
+    mov.l       #_etext, er2
+    mov.l       #___data, er3
+_data_init_l1:
+    cmp.l       #_edata, er3
+    bcc         _data_init_l2
+    mov.w       @er2, r0
+    mov.w       r0, @er3
+    adds        #2, er2
+    adds        #2, er3
+    bra         _data_init_l1
+    
+_data_init_l2:
     jsr         @_main
     jsr         @_monitor
 

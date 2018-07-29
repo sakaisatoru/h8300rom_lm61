@@ -24,7 +24,7 @@ $(PKG): $(OBJ)
 	$(AS) -o $@ $<
 
 .c.o:
-	$(CC) -O1 -w -mrelax -g -o $@ -c -mh -mn $<
+	$(CC) -Os -w -mrelax -g -o $@ -c -mh -mn $<
 
 clean:
 	rm -f $(OBJ) $(PKG)
