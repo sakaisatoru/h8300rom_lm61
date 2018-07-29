@@ -30,12 +30,12 @@ uint8_t *num2str (int n)
         if( n == 0 ) break;
     }
     for( i--; i >= 0; i-- ){
-        buf[i] = '0';
         if( i == 4 ) buf[i] = '.';
-        if( i < 3 ){
-            buf[i] = f ? '-':' ';
+        else if( i < 3 ){
+            buf[i] = (f ? '-':' ');
             break;
         }
+        else buf[i] = '0';
     }
     return &buf[i];
 }
@@ -170,7 +170,7 @@ void unixtime2str (uint32_t a, uint8_t blink)
 void main(void)
 {
     uint8_t c, *s, blink;
-    int pos;
+    int pos, temperature;
     
     DI();
     AD.ADCSR.BYTE = 8;          /* A/D 割り込み無、単一モード 70ステート */
@@ -203,7 +203,8 @@ void main(void)
             blink ^= 1;
             unixtime2str (gettime(), blink);
             lcd_puts (0, buf);
-            s = num2str(read_lm61());
+            temperature = read_lm61();
+            s = num2str(temperature);
             buf[7] = 0xdf; buf[8] = 'C'; buf[9] = 0x00;
             lcd_puts (0x43, s);     /* ２行目 センタリング xx.xx℃ */
         }
@@ -217,13 +218,9 @@ void main(void)
             if ( c == '\0' ) {
                 siobuf[pos] = '\0';
                 pos = 0;
-                //~ lcd_puts (0, siobuf);   /* debug */
                 
                 settime (atol (siobuf));
-                /*
-                 * 気温を読み取って親機に値を返す
-                 */
-                s = num2str(read_lm61());
+                s = num2str(temperature);
                 sci_puts(s);
                 sci_putchar('\n');
             }
