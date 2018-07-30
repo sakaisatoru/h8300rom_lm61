@@ -211,11 +211,7 @@ void main(void)
 
         if ((c = sci_getch()) != 0) {
             /* 受信 */
-            if (c == '\n') c = '\0';
-            if (pos < sizeof(siobuf) - 2) {
-                siobuf[pos++] = c;
-            }
-            if ( c == '\0' ) {
+            if (c == '\n') {
                 siobuf[pos] = '\0';
                 pos = 0;
                 
@@ -223,6 +219,11 @@ void main(void)
                 s = num2str(temperature);
                 sci_puts(s);
                 sci_putchar('\n');
+            }
+            else {
+                if (pos < sizeof(siobuf) - 2) {
+                    siobuf[pos++] = c;
+                }
             }
         }
     }
