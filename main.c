@@ -11,18 +11,51 @@ extern volatile uint8_t bUnixtimeflag;
 
 static uint8_t buf[17];
 static uint8_t siobuf[17];
+static uint8_t siobufpos;
+static uint8_t siobuf_ready;
+
+/*
+ * sci 受信割り込み
+ */
+__attribute__ ((interrupt_handler)) void sci_recv_intr (void) 
+{
+    uint8_t c;
+    if (siobuf_ready == 0) {
+        if (SCI3.SSR.BIT.RDRF) {
+            /* 受信バッファフル */
+            c = SCI3.RDR;
+            if (c == '\n') {
+                siobuf[siobufpos] = '\0';
+                siobufpos = 0;
+                siobuf_ready = 1;
+            }
+            else {
+                if (siobufpos < sizeof(siobuf) - 2) {
+                    siobuf[siobufpos++] = c;
+                }
+            }
+        }
+        else {
+            /* 受信エラー */
+            ;
+        }
+    }
+}
+
 
 /*
  * 計測値を固定小数点形式の文字列に変換してその先頭を返す
  */
-uint8_t *num2str (int n)
+uint8_t *num2str (int n, uint8_t term)
 {
     int i, f = 0;
     if( n < 0 ){
         n = ~n + 1;
         f = 1;
     }
-    buf[7] = '\0';
+    if ((buf[7] = term) != '\0') {
+        buf[8] = '\0';
+    }
     for( i = 6; i >= 0; i-- ){
         if( i == 4 ) buf[i--] = '.';
         buf[i] = '0' + n % 10;
@@ -186,7 +219,11 @@ void main(void)
     IENR1.BIT.IENTA = 1;        /* タイマーA 割り込み有効                 */
     
     sci_init();
+    /* sci3 を受信割り込みに切替 */
+    setvector( VECTOR_SCI3, sci_recv_intr );
+    SCI3.SCR3.BYTE |= 0x70;         /* 受信割り込み, 送受信 */
     EI();
+    
     i2c_setup();
     lcd_setup();
     lcd_clr();
@@ -195,8 +232,11 @@ void main(void)
     pos = 0;
     blink = 0;
 
+    /* sci3 受信割り込み周りの初期化 */
+    siobufpos = 0;
+    siobuf_ready = 0;
+
     for (;;) {
-        /* 割り込みを使わないで、各イベントを拾いながら処理を進める */
         if (bUnixtimeflag) {
             /* 1秒ごとに表示を更新する */
             bUnixtimeflag = 0;
@@ -204,27 +244,17 @@ void main(void)
             unixtime2str (gettime(), blink);
             lcd_puts (0, buf);
             temperature = read_lm61();
-            s = num2str(temperature);
+            s = num2str(temperature, '\0');
             buf[7] = 0xdf; buf[8] = 'C'; buf[9] = 0x00;
             lcd_puts (0x43, s);     /* ２行目 センタリング xx.xx℃ */
         }
 
-        if ((c = sci_getch()) != 0) {
-            /* 受信 */
-            if (c == '\n') {
-                siobuf[pos] = '\0';
-                pos = 0;
-                
-                settime (atol (siobuf));
-                s = num2str(temperature);
-                sci_puts(s);
-                sci_putchar('\n');
-            }
-            else {
-                if (pos < sizeof(siobuf) - 2) {
-                    siobuf[pos++] = c;
-                }
-            }
+        if (siobuf_ready) {
+            /* 受信バッファにデータが揃っていたら読みだして処理する */
+            settime (atol (siobuf));
+            s = num2str(temperature, '\n');
+            sci_puts(s);
+            siobuf_ready = 0;
         }
     }
 }

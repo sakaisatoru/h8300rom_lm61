@@ -52,14 +52,15 @@ extern void wait_ms( uint16_t );
 extern void settime( int32_t );
 extern int32_t gettime( void );
 
-
-//~ enum {
-        //~ VECTOR_TIMW = 0,
-        //~ VECTOR_TIMV,
-        //~ VECTOR_SCI3,
-        //~ VECTOR_IIC2,
-        //~ VECTOR_AD
-//~ };
+extern void setvector( unsigned short vector, 
+            __attribute__ ((interrupt_handler)) void(*func)(void) );
+enum {
+        VECTOR_TIMW = 0,
+        VECTOR_TIMV,
+        VECTOR_SCI3,
+        VECTOR_IIC2,
+        VECTOR_AD
+};
 
 #define EI()   asm volatile ("andc.b #0x7f,ccr")
 #define DI()   asm volatile ("orc.b #0x80,ccr")
