@@ -78,19 +78,51 @@ uint8_t *num2str (int n, uint8_t term)
  * 整数3桁、小数2桁の固定小数点で計測値を返す
  * -30.00 〜 100.00
  */
-int read_lm61( void )
+int lm61_tempsum[5];
+int lm61_tempcount;
+
+int read_lm61_raw( void )
 {
-    int i, d = 0;
+    int i, d;
     
-    AD.ADCSR.BYTE = 1;              /* 単一モード、AN1 */
-    for( i = 0; i <= 15; i++ ){          /* 16回読んで平均を得る */
+    d = 0;
+    AD.ADCSR.BYTE = 1;                  /* 単一モード、AN1 */
+    for( i = 0; i <= 7; i++ ){          /* 8回読んで平均を得る */
         AD.ADCSR.BIT.ADST = 1;
         while( ! AD.ADCSR.BIT.ADF );
         d += AD.ADDRB >> 6;             /* read AN1 (空の下位６ビットを捨てる)*/
         AD.ADCSR.BIT.ADF = 0;
-        wait_ms(10);                /* delay 10ms */
+        wait_ms(10);                    /* delay 10ms */
     }
-    d = (int)((d >> 4) * 48) - 6000;    /* 電圧を温度へ変換 4.8mV at 1 */
+    return d >> 3;                      /* 平均を得る */
+}
+
+void init_lm61( void )
+{
+    int i, d;
+    d = read_lm61_raw();
+    for (i = 0; i < sizeof(lm61_tempsum)/sizeof(lm61_tempsum[0]); i++) {
+        lm61_tempsum[i] = d;
+    }
+    lm61_tempcount = 0;
+}
+
+int read_lm61( void )
+{
+    int i, d = 0;
+    
+    /* 単純移動平均フィルタ 直近n回分の平均を得る n <= 5 */
+    lm61_tempsum[lm61_tempcount++] = read_lm61_raw();
+    if (lm61_tempcount >= sizeof(lm61_tempsum)/sizeof(lm61_tempsum[0])) {
+        lm61_tempcount = 0;
+    }
+    d = 0;
+    for (i = 0; i < sizeof(lm61_tempsum)/sizeof(lm61_tempsum[0]); i++) {
+        d += lm61_tempsum[i];
+    }
+    d /= sizeof(lm61_tempsum)/sizeof(lm61_tempsum[0]);
+        
+    d = (int)((d) * 48) - 6000;    /* 電圧を温度へ変換 4.8mV at 1 */
     /*
      *  センサー誤差補正
      *      温度域         校正値(データシート) 校正値（実測）
@@ -227,7 +259,8 @@ void main(void)
     i2c_setup();
     lcd_setup();
     lcd_clr();
-    wait_ms(2); /* about 2mS */
+    init_lm61();    /* lcd の 時間稼ぎ兼用 */
+    //~ wait_ms(2); /* about 2mS */
     lcd_puts( 0, "H8/Tiny Ready." );
     pos = 0;
     blink = 0;
@@ -235,23 +268,30 @@ void main(void)
     /* sci3 受信割り込み周りの初期化 */
     siobufpos = 0;
     siobuf_ready = 0;
-
+    
+    temperature = read_lm61();
     for (;;) {
         if (bUnixtimeflag) {
             /* 1秒ごとに表示を更新する */
             bUnixtimeflag = 0;
-            blink ^= 1;
-            unixtime2str (gettime(), blink);
+            blink++;
+            unixtime2str (gettime(), blink & 1);
             lcd_puts (0, buf);
-            temperature = read_lm61();
-            s = num2str(temperature, '\0');
-            buf[7] = 0xdf; buf[8] = 'C'; buf[9] = 0x00;
-            lcd_puts (0x43, s);     /* ２行目 センタリング xx.xx℃ */
+            if (blink & 4) {
+                /* 温度は4秒毎に読みだす */
+                temperature = read_lm61();
+                s = num2str(temperature, '\0');
+                buf[7] = 0xdf; buf[8] = 'C'; buf[9] = 0x00;
+                lcd_puts (0x43, s);     /* ２行目 センタリング xx.xx℃ */
+            }
         }
 
         if (siobuf_ready) {
-            /* 受信バッファにデータが揃っていたら読みだして処理する */
-            settime (atol (siobuf));
+            /* 受信バッファにデータが揃っていたら読みだして処理し、温度を返す */
+            if (siobuf[0] >= '0' && siobuf[0] <= '9') {
+                /* 数字で始まっていれば時刻補正を行う */
+                settime (atol (siobuf));
+            }
             s = num2str(temperature, '\n');
             sci_puts(s);
             siobuf_ready = 0;
