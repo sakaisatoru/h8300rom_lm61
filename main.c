@@ -132,7 +132,9 @@ int read_lm61( void )
      *      ケースに収めたら誤差が増えたので、計測しながら校正値を求めた。
      *      但し、グラフの傾きはデータシートのまま。
      */
-    d -= ( d <= 2500 ) ? (700 - (d+3000) / 55) : (600 + (d-2500) / 75);
+    //~ d -= ( d <= 2500 ) ? (700 - (d+3000) / 55) : (600 + (d-2500) / 75);
+    /* 2018.8.6 補正係数を修正 */
+    d -= ( d <= 2500 ) ? (700 - (d+3000) / 55) : (550 + (d-2500) / 75);
 
     return d;
 }
@@ -169,16 +171,16 @@ char * itos (uint16_t n, uint8_t *b, int digit)
     return b;
 }
 
-
+static uint8_t *weekday[] = {"Fri","Sat","Sun","Mon","Tue","Wed","Thu"};
 void unixtime2str (uint32_t a, uint8_t blink)
 {
     static uint8_t month[] = {31,28,31,30, 31,30,31,31, 30,31,30,31};
     uint16_t min;
     uint32_t hour, day, year, leaps, tm;
-    uint16_t c_year,  tmp,  c_day;
-    uint8_t c_month, c_hour, c_min, c_sec;
-    int i;
-    uint8_t *p;
+    uint16_t c_year,  tmp,  c_day, c_year2;
+    uint8_t c_month, c_hour, c_min, c_sec, c_month2;
+    int16_t i, gm;
+    uint8_t *p, c, *p2;
     
     min  = 60;
     hour = min * 60;
@@ -214,13 +216,29 @@ void unixtime2str (uint32_t a, uint8_t blink)
     c_min = (uint8_t)(tm % (uint32_t)hour / (uint32_t)min);
     //~ c_sec = tm % hour % min;
     
+    // ツェラーの公式で曜日を求める
+    c_month2 = c_month;
+    c_year2 = c_year;
+    if (c_month2 < 3) {
+        c_month2 += 12;
+        c_year2--;
+    }
+    c = c_year2 / 100;
+    gm = -2 * c + (c/4);
+    p2 = weekday[(c_day+((26*(c_month2+1))/10)+c_year2+(c_year2/4)+(gm))%7];
+
     // yyyy-mm-dd hh:mm
     p = buf;
-    p = itos (c_year, p, 4);
-    *p++ = '-';
+    //~ p = itos (c_year, p, 4);
+    //~ *p++ = '-';
     p = itos (c_month, p, 2);
     *p++ = '-';
     p = itos (c_day, p, 2);
+    *p++ = '(';
+    *p++ = *p2++;
+    *p++ = *p2++;
+    *p++ = *p2;
+    *p++ = ')';
     *p++ = ' ';
     p = itos (c_hour, p, 2);
     *p++ = blink ? ':':' ';
@@ -280,20 +298,25 @@ void main(void)
             if (blink & 4) {
                 /* 温度は4秒毎に読みだす */
                 temperature = read_lm61();
-                s = num2str(temperature, '\0');
+                s = num2str (temperature, '\0');
                 buf[7] = 0xdf; buf[8] = 'C'; buf[9] = 0x00;
-                lcd_puts (0x43, s);     /* ２行目 センタリング xx.xx℃ */
+                lcd_puts (0x48, s);     /* ２行目 センタリング xx.xx℃ */
             }
         }
 
         if (siobuf_ready) {
-            /* 受信バッファにデータが揃っていたら読みだして処理し、温度を返す */
+            /* 受信バッファにデータが揃っていたら読みだして処理する */
             if (siobuf[0] >= '0' && siobuf[0] <= '9') {
-                /* 数字で始まっていれば時刻補正を行う */
+                /* 数字で始まっていれば時刻補正を行って温度を返す */
                 settime (atol (siobuf));
+                s = num2str (temperature, '\n');
+                sci_puts(s);
             }
-            s = num2str(temperature, '\n');
-            sci_puts(s);
+            else {
+                /* 文字列を受信していれば8文字だけ表示する */
+                siobuf[8] = 0x00;
+                lcd_puts (0x40, siobuf);
+            }
             siobuf_ready = 0;
         }
     }
