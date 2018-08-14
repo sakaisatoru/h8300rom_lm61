@@ -13,6 +13,7 @@ static uint8_t buf[17];
 static uint8_t siobuf[17];
 static uint8_t siobufpos;
 static uint8_t siobuf_ready;
+static uint8_t mesbuf[17];
 
 /*
  * sci 受信割り込み
@@ -38,6 +39,39 @@ __attribute__ ((interrupt_handler)) void sci_recv_intr (void)
         else {
             /* 受信エラー */
             ;
+        }
+    }
+}
+
+/*
+ * 受信バッファの内容をメッセージバッファにコピーする
+ */
+void bufcopy (void)
+{
+    uint8_t *d, *s, i;
+    
+    d = mesbuf;
+    s = siobuf;
+    for (i = 0; i < sizeof(mesbuf); i++) {
+        *d++ = *s++;
+    }
+}
+
+/*
+ * LCDのスクロール領域(２行目左から８文字分)に文字列を表示する。
+ * メッセージバッファ末端に達した場合は先頭に戻る。
+ */
+void show_message (uint8_t *p)
+{
+    uint8_t i;
+    lcd_command( 0x80 | 0x40 );
+    for (i = 0; i < 8; i++) {
+        if (*p == '\0' || p > &mesbuf[sizeof(mesbuf)-1]) {
+            lcd_data( ' ' );
+            p = mesbuf;
+        }
+        else {
+            lcd_data(*p++);
         }
     }
 }
@@ -154,6 +188,9 @@ uint32_t atol (uint8_t *b)
     return l;
 }
 
+/*
+ * 整数を文字に変換してバッファに格納する。消費したバッファの次を返す。
+ */
 char * itos (uint16_t n, uint8_t *b, int digit)
 {
     uint8_t b2[6], *pos;
@@ -171,16 +208,22 @@ char * itos (uint16_t n, uint8_t *b, int digit)
     return b;
 }
 
-static uint8_t *weekday[] = {"Fri","Sat","Sun","Mon","Tue","Wed","Thu"};
+//~ static uint8_t *weekday[] = {"Fri","Sat","Sun","Mon","Tue","Wed","Thu"};
+// 1970/1/1 が木曜日なことを利用
+static uint8_t *weekday[] = {"Th","Fr","Sa","Su","Mo","Tu","We"};
 void unixtime2str (uint32_t a, uint8_t blink)
 {
     static uint8_t month[] = {31,28,31,30, 31,30,31,31, 30,31,30,31};
     uint16_t min;
     uint32_t hour, day, year, leaps, tm;
-    uint16_t c_year,  tmp,  c_day, c_year2;
-    uint8_t c_month, c_hour, c_min, c_sec, c_month2;
-    int16_t i, gm;
-    uint8_t *p, c, *p2;
+    uint16_t c_year,  tmp,  c_day;
+    uint8_t c_month, c_hour, c_min, c_sec;
+    int16_t i;
+    uint8_t *p, *p2;
+    
+    //~ int16_t gm;
+    //~ uint8_t c, c_month2;
+    //~ uint16_t c_year2;
     
     min  = 60;
     hour = min * 60;
@@ -217,15 +260,18 @@ void unixtime2str (uint32_t a, uint8_t blink)
     //~ c_sec = tm % hour % min;
     
     // ツェラーの公式で曜日を求める
-    c_month2 = c_month;
-    c_year2 = c_year;
-    if (c_month2 < 3) {
-        c_month2 += 12;
-        c_year2--;
-    }
-    c = c_year2 / 100;
-    gm = -2 * c + (c/4);
-    p2 = weekday[(c_day+((26*(c_month2+1))/10)+c_year2+(c_year2/4)+(gm))%7];
+    //~ c_month2 = c_month;
+    //~ c_year2 = c_year;
+    //~ if (c_month2 < 3) {
+        //~ c_month2 += 12;
+        //~ c_year2--;
+    //~ }
+    //~ c = c_year2 / 100;
+    //~ gm = -2 * c + (c/4);
+    //~ p2 = weekday[(c_day+((26*(c_month2+1))/10)+c_year2+(c_year2/4)+(gm))%7];
+    
+    // unix epoctime 1970/1/1が木曜日であることから曜日を求める
+    p2 = weekday[a / day % 7];
 
     // yyyy-mm-dd hh:mm
     p = buf;
@@ -236,9 +282,10 @@ void unixtime2str (uint32_t a, uint8_t blink)
     p = itos (c_day, p, 2);
     *p++ = '(';
     *p++ = *p2++;
-    *p++ = *p2++;
+    //~ *p++ = *p2++;
     *p++ = *p2;
     *p++ = ')';
+    *p++ = ' ';
     *p++ = ' ';
     p = itos (c_hour, p, 2);
     *p++ = blink ? ':':' ';
@@ -252,7 +299,7 @@ void unixtime2str (uint32_t a, uint8_t blink)
  */
 void main(void)
 {
-    uint8_t c, *s, blink;
+    uint8_t c, *s, blink, *mespos;
     int pos, temperature;
     
     DI();
@@ -287,6 +334,10 @@ void main(void)
     siobufpos = 0;
     siobuf_ready = 0;
     
+    /* メッセージバッファ初期化 */
+    mesbuf[0] = ' ';    
+    mesbuf[1] = '\0';
+    
     temperature = read_lm61();
     for (;;) {
         if (bUnixtimeflag) {
@@ -295,12 +346,23 @@ void main(void)
             blink++;
             unixtime2str (gettime(), blink & 1);
             lcd_puts (0, buf);
-            if (blink & 4) {
+            if (blink & 3 == 3) {
                 /* 温度は4秒毎に読みだす */
                 temperature = read_lm61();
                 s = num2str (temperature, '\0');
                 buf[7] = 0xdf; buf[8] = 'C'; buf[9] = 0x00;
-                lcd_puts (0x48, s);     /* ２行目 センタリング xx.xx℃ */
+                lcd_puts (0x48, s);     /* ２行目 右寄せ xx.xx℃ */
+            }
+
+            if (blink & 1) {
+                /* １秒おきにメッセージ表示を更新する */
+                show_message(mespos);
+                if (*mespos == '\0' || mespos > &mesbuf[sizeof(mesbuf)-1]){
+                    mespos = mesbuf;
+                }
+                else {
+                    mespos++;
+                }
             }
         }
 
@@ -313,11 +375,12 @@ void main(void)
                 sci_puts(s);
             }
             else {
-                /* 文字列を受信していれば8文字だけ表示する */
-                siobuf[8] = 0x00;
-                lcd_puts (0x40, siobuf);
+                /* 文字列を受信していればメッセージバッファを更新する */
+                bufcopy();
+                mespos = mesbuf;
             }
             siobuf_ready = 0;
         }
+        
     }
 }
