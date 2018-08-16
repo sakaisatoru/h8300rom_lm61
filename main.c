@@ -31,7 +31,7 @@ __attribute__ ((interrupt_handler)) void sci_recv_intr (void)
                 siobuf_ready = 1;
             }
             else {
-                if (siobufpos < sizeof(siobuf) - 2) {
+                if (siobufpos < sizeof(siobuf) - 1) {
                     siobuf[siobufpos++] = c;
                 }
             }
@@ -48,11 +48,11 @@ __attribute__ ((interrupt_handler)) void sci_recv_intr (void)
  */
 void bufcopy (void)
 {
-    uint8_t *d, *s, i;
+    uint8_t *d, *s;
     
     d = mesbuf;
     s = siobuf;
-    for (i = 0; i < sizeof(mesbuf); i++) {
+    while (d <= &mesbuf[sizeof(mesbuf)-1]) {
         *d++ = *s++;
     }
 }
@@ -319,6 +319,8 @@ void main(void)
     /* sci3 を受信割り込みに切替 */
     setvector( VECTOR_SCI3, sci_recv_intr );
     SCI3.SCR3.BYTE |= 0x70;         /* 受信割り込み, 送受信 */
+    
+    settime(0);
     EI();
     
     i2c_setup();
@@ -335,8 +337,7 @@ void main(void)
     siobuf_ready = 0;
     
     /* メッセージバッファ初期化 */
-    mesbuf[0] = ' ';    
-    mesbuf[1] = '\0';
+    mesbuf[0] = '\0';
     
     temperature = read_lm61();
     for (;;) {
