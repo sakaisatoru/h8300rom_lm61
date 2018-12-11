@@ -215,15 +215,11 @@ void unixtime2str (uint32_t a, uint8_t blink)
 {
     static uint8_t month[] = {31,28,31,30, 31,30,31,31, 30,31,30,31};
     uint16_t min;
-    uint32_t hour, day, year, leaps, tm;
+    uint32_t hour, day, year, leaps;
     uint16_t c_year,  tmp,  c_day;
     uint8_t c_month, c_hour, c_min, c_sec;
     int16_t i;
     uint8_t *p, *p2;
-    
-    //~ int16_t gm;
-    //~ uint8_t c, c_month2;
-    //~ uint16_t c_year2;
     
     min  = 60;
     hour = min * 60;
@@ -231,8 +227,11 @@ void unixtime2str (uint32_t a, uint8_t blink)
     year = day * 365;
     
     a += hour * 9;  // UTC -> JST
-
-    c_year = a / year;
+    
+    c_hour = (uint8_t)(a / hour % 24);
+    c_min = (uint8_t)(a / min % min);
+    
+    c_year = (uint16_t)(a / year);
     leaps = (c_year - 2) / 4;   // 今年迄の閏年の数
     tmp = (uint16_t)((a % year) / day - leaps);
     c_day = tmp;
@@ -246,30 +245,14 @@ void unixtime2str (uint32_t a, uint8_t blink)
             month[1] = 29;
         }
     }
-    for (i=0; i < 11; i++) {
+    for (i=0; i <= 11; i++) {
         if (c_day <= month[i]) {
             c_month = i + 1;
             break;
         }
         c_day -= month[i];
     }
-    
-    tm = a - (c_year - 1970)* year - ((uint32_t)tmp+leaps) * day;
-    c_hour = (uint8_t)(tm / (uint32_t)hour);
-    c_min = (uint8_t)(tm % (uint32_t)hour / (uint32_t)min);
-    //~ c_sec = tm % hour % min;
-    
-    // ツェラーの公式で曜日を求める
-    //~ c_month2 = c_month;
-    //~ c_year2 = c_year;
-    //~ if (c_month2 < 3) {
-        //~ c_month2 += 12;
-        //~ c_year2--;
-    //~ }
-    //~ c = c_year2 / 100;
-    //~ gm = -2 * c + (c/4);
-    //~ p2 = weekday[(c_day+((26*(c_month2+1))/10)+c_year2+(c_year2/4)+(gm))%7];
-    
+        
     // unix epoctime 1970/1/1が木曜日であることから曜日を求める
     p2 = weekday[a / day % 7];
 
@@ -351,8 +334,12 @@ void main(void)
                 /* 温度は4秒毎に読みだす */
                 temperature = read_lm61();
                 s = num2str (temperature, '\0');
-                buf[7] = 0xdf; buf[8] = 'C'; buf[9] = 0x00;
-                lcd_puts (0x48, s);     /* ２行目 右寄せ xx.xx℃ */
+                buf[7] = 0xdf; buf[8] = 'C'; 
+                /* 整数部が１桁の時、直前に表示した末尾の'C'が
+                 * 重なってしまうので空白を表示して消す */ 
+                buf[9] = ' '; 
+                buf[10] = 0x00;
+                lcd_puts (0x48, s);     /* ２行目 xx.xx℃ */
             }
 
             if (blink & 1) {
