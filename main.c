@@ -168,7 +168,8 @@ int read_lm61( void )
      */
     //~ d -= ( d <= 2500 ) ? (700 - (d+3000) / 55) : (600 + (d-2500) / 75);
     /* 2018.8.6 補正係数を修正 */
-    d -= ( d <= 2500 ) ? (700 - (d+3000) / 55) : (550 + (d-2500) / 75);
+    //~ d -= ( d <= 2500 ) ? (700 - (d+3000) / 55) : (550 + (d-2500) / 75);
+    d -= ( d <= 2500 ) ? (698 - (d+3090) / 55) : (550 + (d-2500) / 75);
 
     return d;
 }
@@ -215,8 +216,8 @@ void unixtime2str (uint32_t a, uint8_t blink)
 {
     static uint8_t month[] = {31,28,31,30, 31,30,31,31, 30,31,30,31};
     uint16_t min;
-    uint32_t hour, day, year, leaps;
-    uint16_t c_year,  tmp,  c_day;
+    uint32_t hour, day, year;
+    uint16_t c_year, c_day;
     uint8_t c_month, c_hour, c_min, c_sec;
     int16_t i;
     uint8_t *p, *p2;
@@ -224,18 +225,16 @@ void unixtime2str (uint32_t a, uint8_t blink)
     min  = 60;
     hour = min * 60;
     day  = hour * 24;
-    year = day * 365;
+    year = day * 365 + (day / 4); // 閏年分を補正
     
     a += hour * 9;  // UTC -> JST
     
     c_hour = (uint8_t)(a / hour % 24);
     c_min = (uint8_t)(a / min % min);
     
-    c_year = (uint16_t)(a / year);
-    leaps = (c_year - 2) / 4;   // 今年迄の閏年の数
-    tmp = (uint16_t)((a % year) / day - leaps);
-    c_day = tmp;
-    c_year += 1970;
+    c_year = (uint16_t)(a / year) + 1970;
+    c_day = (uint16_t)((a % year) / day) + 1;
+
     month[1] = 28;
     if (c_year % 4 == 0) {
         if (c_year % 100 != 0) {
