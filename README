@@ -1,0 +1,7 @@
+AKI-3694とLM61を使った温度計の製作
+
+ファイルの説明
+    README      このファイル
+    履歴.txt      製作の記録
+    h8write.c   みついわゆきお氏による書き込みプログラム (http://mes.osdn.jp/h8/index-j.html)
+    
