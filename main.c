@@ -145,7 +145,7 @@ uint8_t *num2str (int n, uint8_t term)
 int lm61_tempsum[5];
 int lm61_tempcount;
 
-int read_lm61_raw( void )
+int read_lm61_raw (void)
 {
     int i, d;
     
@@ -161,7 +161,7 @@ int read_lm61_raw( void )
     return d >> 3;                      /* 平均を得る */
 }
 
-void init_lm61( void )
+void init_lm61 (void)
 {
     int i, d;
     d = read_lm61_raw();
@@ -171,7 +171,7 @@ void init_lm61( void )
     lm61_tempcount = 0;
 }
 
-int read_lm61( void )
+int read_lm61 (void)
 {
     int i, d = 0;
     
@@ -239,7 +239,6 @@ char * itos (uint16_t n, uint8_t *b, int digit)
     return b;
 }
 
-//~ static uint8_t *weekday[] = {"Fri","Sat","Sun","Mon","Tue","Wed","Thu"};
 // 1970/1/1 が木曜日なことを利用
 static uint8_t *weekday[] = {"Th","Fr","Sa","Su","Mo","Tu","We"};
 void unixtime2str (uint32_t a, uint8_t blink)
@@ -335,12 +334,12 @@ void main(void)
     settime(0);
     EI();
     
-    i2c_setup();
-    lcd_setup();
-    lcd_clr();
-    init_lm61();    /* lcd の 時間稼ぎ兼用 */
+    i2c_setup ();
+    lcd_setup ();
+    lcd_clr ();
+    init_lm61 ();    /* lcd の 時間稼ぎ兼用 */
     //~ wait_ms(2); /* about 2mS */
-    lcd_puts( 0, "H8/Tiny Ready." );
+    lcd_puts (0, "H8/Tiny Ready.");
     pos = 0;
     blink = 0;
 

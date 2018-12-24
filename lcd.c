@@ -87,7 +87,7 @@ void lcd_send( uint8_t c, uint8_t mode )
 /*
  * I2C 初期化
  */
-void i2c_setup( void )
+void i2c_setup (void)
 {
     DI();
     IIC2.ICCR1.BIT.ICE  = 1;
@@ -101,7 +101,7 @@ void i2c_setup( void )
 /*
  * LCD 初期化
  */
-void lcd_setup( void )
+void lcd_setup (void)
 {
     uint8_t * s;
     int i;
@@ -123,7 +123,7 @@ void lcd_setup( void )
  * LCD 文字列出力
  * pos : 表示位置　１行目 0- ２行目 0x40-
  */
-void lcd_puts( uint8_t pos, uint8_t *s )
+void lcd_puts (uint8_t pos, uint8_t *s)
 {
     lcd_command( 0x80 | pos );
     while( * s != 0 )
