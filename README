@@ -60,7 +60,7 @@ AKI-3694とLM61を使った温度計の製作
         H8/300H向けのgccは 32ビットLinux上で4.4.6をビルドして使っています。どういう訳か 
         他のバージョンや64ビット環境ではうまく動かすことができず、ホスト(Linux,amd64)上で
         VirtualBox経由で32ビットLinuxを動かし、共有フォルダ及びssh経由で動かしています。
-        参考サイト(https://www.soramimi.jp/h8300gcc/index.html)に従ってhmsに
+        参考サイト( https://www.soramimi.jp/h8300gcc/index.html )に従ってhmsに
         していますが、最終的に motファイルが得られれば良いので elfでもいいと思います。
         （hmsは廃止されたと聞きましたのでelf一択かも知れません）
 
@@ -71,5 +71,5 @@ AKI-3694とLM61を使った温度計の製作
     
 その他
     書き込みには     
-    h8write.c (みついわゆきお氏による書き込みプログラム (http://mes.osdn.jp/h8/index-j.html))を
+    h8write.c (みついわゆきお氏による書き込みプログラム ( http://mes.osdn.jp/h8/index-j.html ))を
     使用しています。
