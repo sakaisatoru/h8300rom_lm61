@@ -1,7 +1,7 @@
-OUTPUT_FORMAT("coff-h8300")
+OUTPUT_FORMAT("elf32-h8300")
 OUTPUT_ARCH(h8300hn)
 
-/*STARTUP(mystartup.o)*/
+/* STARTUP(mystartup.o)*/
 
 MEMORY {
     rom     : o = 0x0000, l = 0x8000
@@ -44,6 +44,7 @@ SECTIONS {
     } > rom
 
 .text 0x0034 : {
+    *(.text.startup)
     *(.text)
     *(.strings)
     *(.rodata)

@@ -4,12 +4,12 @@ OBJ = mystartup.o monitor.o main.o lcd.o monitorsub.o sci.o data.o
 #OBJ =  main.o
 
 SCRIPT_PREFIX = ./
-TOOLS_PREFIX = /usr/local/h8300-hms/bin/
-LIBPATH= /usr/local/h8300-hms/lib/gcc/h8300-hms/4.4.6/h8300h/normal/
-CC = $(TOOLS_PREFIX)h8300-hms-gcc
-AS = $(TOOLS_PREFIX)h8300-hms-as
-OBJCOPY = $(TOOLS_PREFIX)h8300-hms-objcopy
-OBJDUMP = $(TOOLS_PREFIX)h8300-hms-objdump
+TOOLS_PREFIX = /usr/local/h8300-elf/bin/
+LIBPATH= /usr/local/h8300-elf/lib/gcc/h8300-elf/9.4.0/h8300h/normal/
+CC = $(TOOLS_PREFIX)h8300-elf-gcc
+AS = $(TOOLS_PREFIX)h8300-elf-as
+OBJCOPY = $(TOOLS_PREFIX)h8300-elf-objcopy
+OBJDUMP = $(TOOLS_PREFIX)h8300-elf-objdump
 
 all: $(PKG).mot Makefile
 
@@ -19,6 +19,7 @@ $(PKG).mot: $(PKG)
 
 $(PKG): $(OBJ)
 	$(CC)  -o $@  -T $(SCRIPT_PREFIX)3694f.x -nostartfiles -nostdlib $(OBJ) $(LIBPATH)libgcc.a
+#~ 	$(CC)  -o $@  -T $(SCRIPT_PREFIX)3694f.x -nostartfiles -nostdlib $(OBJ) 
 
 .s.o:
 	$(AS) -o $@ $<

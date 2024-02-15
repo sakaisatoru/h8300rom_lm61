@@ -5,7 +5,7 @@
     .extern     _setvector
     .extern     _hook_timw
 
-    .section    .text
+    .section    .text.startup
     .global     _start
 _start:
     bra         _start_top
