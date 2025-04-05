@@ -5,7 +5,9 @@ OBJ = mystartup.o monitor.o main.o lcd.o monitorsub.o sci.o data.o
 
 SCRIPT_PREFIX = ./
 TOOLS_PREFIX = /usr/local/h8300-elf/bin/
-LIBPATH= /usr/local/h8300-elf/lib/gcc/h8300-elf/9.4.0/h8300h/normal/
+LIBPATH= /usr/local/h8300-elf/lib/gcc/h8300-elf/8.4.0/h8300h/normal/
+#~ LIBPATH= /usr/local/h8300-elf/lib/gcc/h8300-elf/9.4.0/h8300h/normal/
+#~ LIBPATH= /usr/local/h8300-elf/lib/gcc/h8300-elf/11.4.0/normal/
 CC = $(TOOLS_PREFIX)h8300-elf-gcc
 AS = $(TOOLS_PREFIX)h8300-elf-as
 OBJCOPY = $(TOOLS_PREFIX)h8300-elf-objcopy
@@ -18,14 +20,15 @@ $(PKG).mot: $(PKG)
 	$(OBJDUMP) -D -S -s -mh8300hn $< > $<.ref
 
 $(PKG): $(OBJ)
-	$(CC)  -o $@  -T $(SCRIPT_PREFIX)3694f.x -nostartfiles -nostdlib $(OBJ) $(LIBPATH)libgcc.a
+	$(CC)  -o $@  -T $(SCRIPT_PREFIX)3694f.x -nostartfiles -nostdlib $(OBJ) $(LIBPATH)libgcc.a 
+	# /usr/local/h8300-elf/h8300-elf/lib/h8300h/normal/libstdc++.a
 #~ 	$(CC)  -o $@  -T $(SCRIPT_PREFIX)3694f.x -nostartfiles -nostdlib $(OBJ) 
 
 .s.o:
 	$(AS) -o $@ $<
 
 .c.o:
-	$(CC) -Os -w -mrelax -g -o $@ -c -mh -mn $<
+	$(CC) -isystem /usr/local/h8300-elf/include -Os -w -mrelax -g -o $@ -c -mh -mn $<
 
 clean:
 	rm -f $(OBJ) $(PKG)

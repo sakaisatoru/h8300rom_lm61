@@ -32,6 +32,7 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 #include "iodefine.h"
 #include "monitor.h"
 #include "lcd.h"
