@@ -35,13 +35,13 @@ int16_t DayOfWeek(int16_t y, int16_t m, int16_t d)
 void IncTime(MYTIME *mt)
 {
 	mt->Second++;
-	if(mt->Second >= 60) {
+	if(mt->Second > 59) {
 		mt->Second = 0;
 		mt->Minute++;
-		if(mt->Minute >= 60) {
+		if(mt->Minute > 59) {
 			mt->Minute = 0;
 			mt->Hour++;
-			if(mt->Hour >= 23) {
+			if(mt->Hour > 23) {
 				mt->Hour = 0;
 				mt->Day++;
 				int8_t mx = md[mt->Month];

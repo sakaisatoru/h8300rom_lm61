@@ -249,7 +249,7 @@ void settime2(int64_t uni)
     UnixToMYTIME(uni, 9*60*60, &mt); 
 }
 
-void time2str(uint8_t blink)
+void time2str(void)
 {
     uint8_t *p, *p2;
     
@@ -267,7 +267,7 @@ void time2str(uint8_t blink)
     //~ *p++ = ' ';
     *p++ = ' ';
     p = itos((uint16_t)mt.Hour, p, 2);
-    *p++ = blink ? ':':' ';
+    *p++ = (mt.Second & 1) ? ':':' ';
     p = itos((uint16_t)mt.Minute, p, 2);
     *p = '\0';
 }    
@@ -278,7 +278,7 @@ void time2str(uint8_t blink)
  */
 void main(void)
 {
-    uint8_t c, *s, blink, *mespos;
+    uint8_t c, *s, *mespos;
     int pos, temperature;
     
     DI();
@@ -309,7 +309,6 @@ void main(void)
     //~ wait_ms(2); /* about 2mS */
     lcd_puts(0, "H8/Tiny Ready.");
     pos = 0;
-    blink = 0;
 
     /* sci3 受信割り込み周りの初期化 */
     siobufpos = 0;
@@ -323,10 +322,10 @@ void main(void)
         if (bUnixtimeflag) {
             /* 1秒ごとに表示を更新する */
             bUnixtimeflag = 0;
-            blink++;
-            time2str(blink & 1);
+	    IncTime(&mt);
+            time2str();
             lcd_puts(0, buf);
-            if (blink & 3 == 3) {
+            if (mt.Second & 3 == 3) {
                 /* 温度は4秒毎に読みだす */
                 temperature = read_lm61();
                 s = num2str(temperature, '\0');
@@ -338,7 +337,7 @@ void main(void)
                 lcd_puts(0x48, s);     /* ２行目 xx.xx℃ */
             }
 
-            if (blink & 1) {
+            if (mt.Second & 1) {
                 /* １秒おきにメッセージ表示を更新する */
                 show_message(mespos);
                 if (*mespos == '\0' || mespos > &mesbuf[sizeof(mesbuf)-1]){

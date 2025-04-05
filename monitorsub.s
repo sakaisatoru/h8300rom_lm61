@@ -210,7 +210,10 @@ _int_tima:
     ;~ mov.l       @_lUnixtime, er2
     ;~ inc.l       #1, er2
     ;~ mov.l       er2, @_lUnixtime
-    bsr		_IncTime
+    ;~ push.l	er0
+    ;~ mov.l	#0xf794,er0
+    ;~ bsr		_IncTime
+    ;~ pop.l	er0
 __int_tima_exit:
     mov.b       @IRR1, r2l
     bclr        #6, r2l                 ; IRR1のIRRTA(フラグ)をクリア
