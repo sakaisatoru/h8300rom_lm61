@@ -36,6 +36,7 @@
 #include "iodefine.h"
 #include "monitor.h"
 #include "lcd.h"
+#include "time_my.h"
 
 /* volatile がないとgccの最適化に引っかかっておかしくなる */
 extern volatile uint8_t bUnixtimeflag;
@@ -46,10 +47,12 @@ static uint8_t siobufpos;
 static uint8_t siobuf_ready;
 static uint8_t mesbuf[17];
 
+static MYTIME mt = {0, 0, 0, 0, NULL, 0, 0, 0};
+
 /*
  * sci 受信割り込み
  */
-__attribute__ ((interrupt_handler)) void sci_recv_intr (void) 
+__attribute__ ((interrupt_handler)) void sci_recv_intr(void) 
 {
     uint8_t c;
     if (siobuf_ready == 0) {
@@ -77,7 +80,7 @@ __attribute__ ((interrupt_handler)) void sci_recv_intr (void)
 /*
  * 受信バッファの内容をメッセージバッファにコピーする
  */
-void bufcopy (void)
+void bufcopy(void)
 {
     uint8_t *d, *s;
     
@@ -92,7 +95,7 @@ void bufcopy (void)
  * LCDのスクロール領域(２行目左から８文字分)に文字列を表示する。
  * メッセージバッファ末端に達した場合は先頭に戻る。
  */
-void show_message (uint8_t *p)
+void show_message(uint8_t *p)
 {
     uint8_t i;
     lcd_command( 0x80 | 0x40 );
@@ -111,7 +114,7 @@ void show_message (uint8_t *p)
 /*
  * 計測値を固定小数点形式の文字列に変換してその先頭を返す
  */
-uint8_t *num2str (int n, uint8_t term)
+uint8_t *num2str(int n, uint8_t term)
 {
     int i, f = 0;
     if( n < 0 ){
@@ -146,7 +149,7 @@ uint8_t *num2str (int n, uint8_t term)
 int lm61_tempsum[5];
 int lm61_tempcount;
 
-int read_lm61_raw (void)
+int read_lm61_raw(void)
 {
     int i, d;
     
@@ -162,7 +165,7 @@ int read_lm61_raw (void)
     return d >> 3;                      /* 平均を得る */
 }
 
-void init_lm61 (void)
+void init_lm61(void)
 {
     int i, d;
     d = read_lm61_raw();
@@ -172,7 +175,7 @@ void init_lm61 (void)
     lm61_tempcount = 0;
 }
 
-int read_lm61 (void)
+int read_lm61(void)
 {
     int i, d = 0;
     
@@ -205,9 +208,10 @@ int read_lm61 (void)
     return d;
 }
 
-uint32_t atol (uint8_t *b)
+//~ uint32_t atol(uint8_t *b)
+int64_t atol(uint8_t *b)
 {
-    uint32_t l;
+    int64_t l;
     
     l = 0;
     while (*b != '\0') {
@@ -223,7 +227,7 @@ uint32_t atol (uint8_t *b)
 /*
  * 整数を文字に変換してバッファに格納する。消費したバッファの次を返す。
  */
-char * itos (uint16_t n, uint8_t *b, int digit)
+char *itos(uint16_t n, uint8_t *b, int digit)
 {
     uint8_t b2[6], *pos;
     int i;
@@ -240,68 +244,31 @@ char * itos (uint16_t n, uint8_t *b, int digit)
     return b;
 }
 
-// 1970/1/1 が木曜日なことを利用
-static uint8_t *weekday[] = {"Th","Fr","Sa","Su","Mo","Tu","We"};
-void unixtime2str (uint32_t a, uint8_t blink)
+void settime2(int64_t uni)
 {
-    static uint8_t month[] = {31,28,31,30, 31,30,31,31, 30,31,30,31};
-    uint16_t min;
-    uint32_t hour, day, year;
-    uint16_t c_year, c_day;
-    uint8_t c_month, c_hour, c_min, c_sec;
-    int16_t i;
+    UnixToMYTIME(uni, 9*60*60, &mt); 
+}
+
+void time2str(uint8_t blink)
+{
     uint8_t *p, *p2;
     
-    min  = 60;
-    hour = min * 60;
-    day  = hour * 24;
-    year = day * 365 + (day / 4); // 閏年分を補正
-    
-    a += hour * 9;  // UTC -> JST
-    
-    c_hour = (uint8_t)(a / hour % 24);
-    c_min = (uint8_t)(a / min % min);
-    
-    c_year = (uint16_t)(a / year) + 1970;
-    c_day = (uint16_t)((a % year) / day) + 1;
-
-    month[1] = 28;
-    if (c_year % 4 == 0) {
-        if (c_year % 100 != 0) {
-            month[1] = 29;
-        }
-        else if (c_year % 400 == 0) {
-            month[1] = 29;
-        }
-    }
-    for (i=0; i <= 11; i++) {
-        if (c_day <= month[i]) {
-            c_month = i + 1;
-            break;
-        }
-        c_day -= month[i];
-    }
-        
-    // unix epoctime 1970/1/1が木曜日であることから曜日を求める
-    p2 = weekday[a / day % 7];
-
-    // yyyy-mm-dd hh:mm
+    // mm-dd(mon) hh:mm
+    p2 = (uint8_t*)mt.WeekdayName;
     p = buf;
-    //~ p = itos (c_year, p, 4);
-    //~ *p++ = '-';
-    p = itos (c_month, p, 2);
+    p = itos((uint16_t)mt.Month, p, 2);
     *p++ = '-';
-    p = itos (c_day, p, 2);
+    p = itos((uint16_t)mt.Day, p, 2);
     *p++ = '(';
     *p++ = *p2++;
-    //~ *p++ = *p2++;
+    *p++ = *p2++;
     *p++ = *p2;
     *p++ = ')';
+    //~ *p++ = ' ';
     *p++ = ' ';
-    *p++ = ' ';
-    p = itos (c_hour, p, 2);
+    p = itos((uint16_t)mt.Hour, p, 2);
     *p++ = blink ? ':':' ';
-    p = itos (c_min, p, 2);
+    p = itos((uint16_t)mt.Minute, p, 2);
     *p = '\0';
 }    
 
@@ -329,18 +296,18 @@ void main(void)
     
     sci_init();
     /* sci3 を受信割り込みに切替 */
-    setvector( VECTOR_SCI3, sci_recv_intr );
+    setvector(VECTOR_SCI3, sci_recv_intr);
     SCI3.SCR3.BYTE |= 0x70;         /* 受信割り込み, 送受信 */
     
-    settime(0);
+    settime2(0);
     EI();
     
-    i2c_setup ();
-    lcd_setup ();
-    lcd_clr ();
-    init_lm61 ();    /* lcd の 時間稼ぎ兼用 */
+    i2c_setup();
+    lcd_setup();
+    lcd_clr();
+    init_lm61();    /* lcd の 時間稼ぎ兼用 */
     //~ wait_ms(2); /* about 2mS */
-    lcd_puts (0, "H8/Tiny Ready.");
+    lcd_puts(0, "H8/Tiny Ready.");
     pos = 0;
     blink = 0;
 
@@ -357,18 +324,18 @@ void main(void)
             /* 1秒ごとに表示を更新する */
             bUnixtimeflag = 0;
             blink++;
-            unixtime2str (gettime(), blink & 1);
-            lcd_puts (0, buf);
+            time2str(blink & 1);
+            lcd_puts(0, buf);
             if (blink & 3 == 3) {
                 /* 温度は4秒毎に読みだす */
                 temperature = read_lm61();
-                s = num2str (temperature, '\0');
+                s = num2str(temperature, '\0');
                 buf[7] = 0xdf; buf[8] = 'C'; 
                 /* 整数部が１桁の時、直前に表示した末尾の'C'が
                  * 重なってしまうので空白を表示して消す */ 
                 buf[9] = ' '; 
                 buf[10] = 0x00;
-                lcd_puts (0x48, s);     /* ２行目 xx.xx℃ */
+                lcd_puts(0x48, s);     /* ２行目 xx.xx℃ */
             }
 
             if (blink & 1) {
@@ -387,8 +354,8 @@ void main(void)
             /* 受信バッファにデータが揃っていたら読みだして処理する */
             if (siobuf[0] >= '0' && siobuf[0] <= '9') {
                 /* 数字で始まっていれば時刻補正を行って温度を返す */
-                settime (atol (siobuf));
-                s = num2str (temperature, '\n');
+                settime2(atol(siobuf));
+                s = num2str(temperature, '\n');
                 sci_puts(s);
             }
             else {

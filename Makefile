@@ -1,6 +1,6 @@
 PKG = main
 #~ OBJ = mystartup.o main.o lm61.o lcd.o monitorsub.o sci.o data.o
-OBJ = mystartup.o monitor.o main.o lcd.o monitorsub.o sci.o data.o
+OBJ = mystartup.o monitor.o main.o time_my.o lcd.o monitorsub.o sci.o data.o
 #OBJ =  main.o
 
 SCRIPT_PREFIX = ./
@@ -17,7 +17,8 @@ all: $(PKG).mot Makefile
 
 $(PKG).mot: $(PKG)
 	$(OBJCOPY) -O srec $< $@
-	$(OBJDUMP) -D -S -s -mh8300hn $< > $<.ref
+#~ 	$(OBJDUMP) -D -S -s -mh8300hn $< > $<.ref
+	$(OBJDUMP) -D -S -mh8300hn $< > $<.ref
 
 $(PKG): $(OBJ)
 	$(CC)  -o $@  -T $(SCRIPT_PREFIX)3694f.x -nostartfiles -nostdlib $(OBJ) $(LIBPATH)libgcc.a 

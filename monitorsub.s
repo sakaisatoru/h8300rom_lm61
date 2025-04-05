@@ -5,6 +5,7 @@
     .extern     _monitor
     .extern     _showregs
     .extern     _saveregs, _saveccr, _savepc
+    .extern 	_IncTime
 ;    .extern     _bSubSec, _bSec, _bMin, _bHour;
 
     .section    .text
@@ -206,9 +207,10 @@ _int_tima:
     mov.b       #1, r2l                 ; コロン点滅とかに使うフラグ
     mov.b       r2l, @_bUnixtimeflag
     
-    mov.l       @_lUnixtime, er2
-    inc.l       #1, er2
-    mov.l       er2, @_lUnixtime
+    ;~ mov.l       @_lUnixtime, er2
+    ;~ inc.l       #1, er2
+    ;~ mov.l       er2, @_lUnixtime
+    bsr		_IncTime
 __int_tima_exit:
     mov.b       @IRR1, r2l
     bclr        #6, r2l                 ; IRR1のIRRTA(フラグ)をクリア
