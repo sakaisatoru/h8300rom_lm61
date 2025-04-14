@@ -6,7 +6,6 @@
     .extern     _showregs
     .extern     _saveregs, _saveccr, _savepc
     .extern 	_IncTime
-;    .extern     _bSubSec, _bSec, _bMin, _bHour;
 
     .section    .text
     .global     _int_break, _jsr
@@ -194,10 +193,9 @@ _int_break_1:
 ;-----------------------------------------------------------------------------
 ;   Timer A handler
 ;       1/4sec で割り込んでカウントアップする
-;       経過時間は２進で格納
 ;
 _int_tima:
-    push.l      er2
+    push.w      r2
     mov.b       @_bSubSec, r2l          ; bSubSec を 4回数える
     inc.b       r2l
     mov.b       r2l, @_bSubSec
@@ -206,19 +204,29 @@ _int_tima:
     
     mov.b       #1, r2l                 ; コロン点滅とかに使うフラグ
     mov.b       r2l, @_bUnixtimeflag
-    
-    ;~ mov.l       @_lUnixtime, er2
-    ;~ inc.l       #1, er2
-    ;~ mov.l       er2, @_lUnixtime
-    ;~ push.l	er0
-    ;~ mov.l	#0xf794,er0
-    ;~ bsr		_IncTime
-    ;~ pop.l	er0
+
+	push.l		er0
+	push.l		er1
+	push.l		er2
+	push.l		er3
+
+	;~ mov.l       @_lUnixtime, er0
+	;~ add.l		#1, er0
+	;~ mov.l       er0, @_lUnixtime
+	
+	.extern		_mt
+	mov.w		#_mt, r0
+	jsr			_IncTime
+	pop.l		er3
+	pop.l		er2
+	pop.l		er1
+	pop.l		er0
+	
 __int_tima_exit:
     mov.b       @IRR1, r2l
     bclr        #6, r2l                 ; IRR1のIRRTA(フラグ)をクリア
     mov.b       r2l, @IRR1
-    pop.l       er2
+    pop.w       r2
     rte
 
 
@@ -228,7 +236,6 @@ __int_tima_exit:
 ;   ccr は破壊される
 ;
 _settime:
-;    mov.l       er0, @_bHour
     mov.l       er0, @_lUnixtime
     rts
 
@@ -238,7 +245,6 @@ _settime:
 ;   ccr, er0 は破壊される
 ;
 _gettime:
-;    mov.l       @_bHour, er0
     mov.l       @_lUnixtime, er0
     rts
 

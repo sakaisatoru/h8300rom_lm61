@@ -3,7 +3,7 @@
 static int8_t md[13] = {0,  31,28,31,30,  31,30,31,31,  30,31,30,31};
 static char *weekday[] = {"Sun", "Mon", "Tue", "Wed", "Thr", "Fri", "Sat"};
 
-int IsLeapYear(int64_t y)
+int IsLeapYear(int16_t y)
 {
     int i = 0;
     if (y % 4 == 0) {			// ４で割れる年はうるう年		
@@ -69,7 +69,7 @@ void UnixToMYTIME(int64_t uni, int64_t loc, MYTIME *mt)
 {
 	uni += loc;
 
-	int64_t days = uni / 86400;
+	int32_t days = (int32_t)(uni / 86400);
 	int16_t years = 1970 -1;
 	int16_t month = 1 -1;
 	
@@ -78,7 +78,7 @@ void UnixToMYTIME(int64_t uni, int64_t loc, MYTIME *mt)
 	for(;;) {
 		years++;
 		leapyear = IsLeapYear(years);
-		int64_t tmp = days;
+		int32_t tmp = days;
 		days -= (leapyear)? 366:365;
 		if (days < 1) {
 			days = tmp;
@@ -87,7 +87,7 @@ void UnixToMYTIME(int64_t uni, int64_t loc, MYTIME *mt)
 	}
 	for(;;) {
 		month++;
-		int64_t tmp = days;
+		int32_t tmp = days;
 		days -= md[month];
 		if (leapyear) days--;
 		if (days < 1) {
@@ -100,7 +100,7 @@ void UnixToMYTIME(int64_t uni, int64_t loc, MYTIME *mt)
 	mt->Year = years;
 	mt->Month = (int8_t)month;
 	mt->Day = (int8_t)days;
-	int64_t dd = uni % 86400;
+	int32_t dd = (int32_t)(uni % 86400);
 	mt->Hour = (int8_t)(dd / 3600);
 	mt->Minute = (int8_t)((dd % 3600) / 60);
 	mt->Second = (int8_t)((dd % 3600) % 60);

@@ -1,4 +1,5 @@
 AKI-3694とLM61を使った温度計の製作
+(末尾にGCC構築について備忘録あり)
 
 製作方法等
     1.正しく組み立てる。
@@ -66,3 +67,48 @@ AKI-3694とLM61を使った温度計の製作
     書き込みには     
     h8write.c (みついわゆきお氏による書き込みプログラム (http://mes.osdn.jp/h8/index-j.html))を
     使用しています。
+
+GCC構築について
+    LMDE6にて　bisonはインストールせず
+
+    binutils
+	cd binutils-2.30
+	mkdir build;cd $_
+	../configure --prefix=/usr/local/h8300-elf --target=h8300-elf --disable-nls --disable-initfini-array --enable-lto 
+	make -j4 
+	sudo make install
+
+	PATH=$PATH:/usr/local/h8300-elf/bin　としてパスを追加してから
+	シェルを再起動するか source　する。
+
+    GCC１回目
+	cd gcc-8.4.0
+	mkdir build;cd $_
+	../configure --prefix=/usr/local/h8300-elf --target=h8300-elf --disable-nls --disable-initfini-array --enable-lto --disable-decimal-float --disable-fixed-point --disable-libatomic --disable-libgomp --disable-libquadmath --disable-libssp --disable-libstdcxx-pch --disable-threads --disable-tls --enable-languages=c  --with-newlib
+	make -j4
+	sudo make install
+
+    newlib
+	cd newlib-2.5.0
+	mkdir build;cd $_
+	../configure --prefix=/usr/local/h8300-elf --target=h8300-elf
+	make -j4
+
+	※sudo make install だと上記で作ったツールを見つけられなくてエラーになるので、
+
+	    hoge.sh
+	     #! /bin/sh
+	     PATH=$PATH:/usr/local/h8300-elf/bin
+	     make install
+
+	このスクリプトを作ってから
+	chmod a+x ./hoge.sh
+	sudo ./hoge.sh
+	を実行する。
+
+    GCC２回目
+	cd gcc-8.4.0
+	mkdir build2;cd $_
+	../configure --prefix=/usr/local/h8300-elf --target=h8300-elf --disable-nls --disable-initfini-array --enable-lto --disable-decimal-float --disable-fixed-point --disable-libatomic --disable-libgomp --disable-libquadmath --disable-libssp --disable-libstdcxx-pch --disable-threads --disable-tls --enable-languages=c,c++  --with-newlib --disable-shared  --disable-libstdc__-v3 
+	make -j4
+	sudo make install

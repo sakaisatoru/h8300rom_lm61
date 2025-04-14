@@ -47,7 +47,8 @@ static uint8_t siobufpos;
 static uint8_t siobuf_ready;
 static uint8_t mesbuf[17];
 
-static MYTIME mt = {0, 0, 0, 0, NULL, 0, 0, 0};
+//~ static MYTIME mt = {0, 0, 0, 0, NULL, 0, 0, 0};
+ MYTIME mt = {0, 0, 0, 0, NULL, 0, 0, 0};
 
 /*
  * sci 受信割り込み
@@ -117,22 +118,22 @@ void show_message(uint8_t *p)
 uint8_t *num2str(int n, uint8_t term)
 {
     int i, f = 0;
-    if( n < 0 ){
+    if (n < 0) {
         n = ~n + 1;
         f = 1;
     }
     if ((buf[7] = term) != '\0') {
         buf[8] = '\0';
     }
-    for( i = 6; i >= 0; i-- ){
-        if( i == 4 ) buf[i--] = '.';
+    for (i = 6; i >= 0; i--) {
+        if (i == 4) buf[i--] = '.';
         buf[i] = '0' + n % 10;
         n /= 10;
-        if( n == 0 ) break;
+        if (n == 0) break;
     }
-    for( i--; i >= 0; i-- ){
-        if( i == 4 ) buf[i] = '.';
-        else if( i < 3 ){
+    for (i--; i >= 0; i--) {
+        if (i == 4) buf[i] = '.';
+        else if (i < 3){
             buf[i] = (f ? '-':' ');
             break;
         }
@@ -146,18 +147,18 @@ uint8_t *num2str(int n, uint8_t term)
  * 整数3桁、小数2桁の固定小数点で計測値を返す
  * -30.00 〜 100.00
  */
-int lm61_tempsum[5];
-int lm61_tempcount;
+int16_t lm61_tempsum[5];
+int16_t lm61_tempcount;
 
-int read_lm61_raw(void)
+int16_t read_lm61_raw(void)
 {
     int i, d;
     
     d = 0;
     AD.ADCSR.BYTE = 1;                  /* 単一モード、AN1 */
-    for( i = 0; i <= 7; i++ ){          /* 8回読んで平均を得る */
+    for (i = 0; i <= 7; i++){		/* 8回読んで平均を得る */
         AD.ADCSR.BIT.ADST = 1;
-        while( ! AD.ADCSR.BIT.ADF );
+        while (!AD.ADCSR.BIT.ADF);
         d += AD.ADDRB >> 6;             /* read AN1 (空の下位６ビットを捨てる)*/
         AD.ADCSR.BIT.ADF = 0;
         wait_ms(10);                    /* delay 10ms */
@@ -175,9 +176,9 @@ void init_lm61(void)
     lm61_tempcount = 0;
 }
 
-int read_lm61(void)
+int16_t read_lm61(void)
 {
-    int i, d = 0;
+    int16_t i, d = 0;
     
     /* 単純移動平均フィルタ 直近n回分の平均を得る n <= 5 */
     lm61_tempsum[lm61_tempcount++] = read_lm61_raw();
@@ -208,7 +209,6 @@ int read_lm61(void)
     return d;
 }
 
-//~ uint32_t atol(uint8_t *b)
 int64_t atol(uint8_t *b)
 {
     int64_t l;
@@ -279,7 +279,8 @@ void time2str(void)
 void main(void)
 {
     uint8_t c, *s, *mespos;
-    int pos, temperature;
+    int pos;
+    int16_t temperature;
     
     DI();
     AD.ADCSR.BYTE = 8;          /* A/D 割り込み無、単一モード 70ステート */
@@ -322,7 +323,7 @@ void main(void)
         if (bUnixtimeflag) {
             /* 1秒ごとに表示を更新する */
             bUnixtimeflag = 0;
-	    IncTime(&mt);
+	    //~ IncTime(&mt);
             time2str();
             lcd_puts(0, buf);
             if (mt.Second & 3 == 3) {

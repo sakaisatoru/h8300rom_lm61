@@ -12,7 +12,7 @@ typedef struct {
 			int8_t Second;
 		} MYTIME;
 		
-int IsLeapYear(int64_t y);
+int IsLeapYear(int16_t y);
 int16_t DayOfWeek(int16_t y, int16_t m, int16_t d);
 void UnixToMYTIME(int64_t uni, int64_t loc, MYTIME *mt);
 void IncTime(MYTIME *mt);
