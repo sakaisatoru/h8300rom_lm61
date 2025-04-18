@@ -58,27 +58,27 @@ const uint8_t lcd_start[] = {
 /*
  * LCDへの送信
  */
-void lcd_send( uint8_t c, uint8_t mode )
+void lcd_send(uint8_t c, uint8_t mode)
 {
-    while( IIC2.ICCR2.BIT.BBSY );               /* バスビジーチェック */
+    while (IIC2.ICCR2.BIT.BBSY);                /* バスビジーチェック */
     IIC2.ICCR1.BIT.MST  = 1;                    /* マスタ送信モード */
     IIC2.ICCR1.BIT.TRS  = 1;
     IIC2.ICCR2.BYTE = 0x80 |                    /* 開始条件発行 */
                       (IIC2.ICCR2.BYTE & 0x3f);
     IIC2.ICDRT = LCD;                           /* スレーブアドレス */
-    while( !IIC2.ICSR.BIT.TEND );
-    while( IIC2.ICIER.BIT.ACKBR );
+    while (!IIC2.ICSR.BIT.TEND);
+    while (IIC2.ICIER.BIT.ACKBR);
 
     IIC2.ICDRT = mode;                          /* コマンド 0x00 データ 0x40 */
-    while( ! IIC2.ICSR.BIT.TDRE );
+    while (!IIC2.ICSR.BIT.TDRE);
 
     IIC2.ICDRT = c;                             /* コマンド（１つで終わる）*/
-    while( ! IIC2.ICSR.BIT.TDRE );
+    while (!IIC2.ICSR.BIT.TDRE);
 
-    while( ! IIC2.ICSR.BIT.TEND );
+    while (!IIC2.ICSR.BIT.TEND);
     IIC2.ICSR.BIT.TEND = 0;
     IIC2.ICCR2.BYTE &= 0x3f;                    /* 停止条件発行 */
-    while( ! IIC2.ICSR.BIT.STOP );
+    while (!IIC2.ICSR.BIT.STOP);
     IIC2.ICSR.BIT.STOP = 0;
     IIC2.ICCR1.BIT.MST  = 0;                    /* スレーブ受信モード */
     IIC2.ICCR1.BIT.TRS  = 0;
@@ -108,13 +108,13 @@ void lcd_setup (void)
     /* LCD初期化 */
     wait_ms(40);   /* LCD 通電から40ms を確保すること */
     s = lcd_start;
-    for( i = 0; i <= 5; i++ ){
-        lcd_command( *s++ );
+    for (i = 0; i <= 5; i++) {
+        lcd_command(*s++);
         wait_ms(1);                         /* 1mS */
     }
     wait_ms(200);  /* 200ms */
-    for( i = 6; i <= 8; i++ ){
-        lcd_command( *s++ );
+    for (i = 6; i <= 8; i++) {
+        lcd_command(*s++);
         wait_ms(1);                         /* 1mS */
     }
 }
@@ -123,17 +123,17 @@ void lcd_setup (void)
  * LCD 文字列出力
  * pos : 表示位置　１行目 0- ２行目 0x40-
  */
-void lcd_puts (uint8_t pos, uint8_t *s)
+void lcd_puts(uint8_t pos, uint8_t *s)
 {
-    lcd_command( 0x80 | pos );
-    while( * s != 0 )
-        lcd_data( * s++ );
+    lcd_command(0x80 | pos);
+    while (*s != 0)
+        lcd_data(*s++);
 }
 #if 0
 /*
  * test
  */
-void lcd_test( void )
+void lcd_test(void)
 {
     i2c_setup();
     lcd_setup();

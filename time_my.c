@@ -35,21 +35,21 @@ int16_t DayOfWeek(int16_t y, int16_t m, int16_t d)
 void IncTime(MYTIME *mt)
 {
 	mt->Second++;
-	if(mt->Second > 59) {
+	if (mt->Second > 59) {
 		mt->Second = 0;
 		mt->Minute++;
-		if(mt->Minute > 59) {
+		if (mt->Minute > 59) {
 			mt->Minute = 0;
 			mt->Hour++;
-			if(mt->Hour > 23) {
+			if (mt->Hour > 23) {
 				mt->Hour = 0;
 				mt->Day++;
 				int8_t mx = md[mt->Month];
-				if(IsLeapYear(mt->Year)) mx++;
-				if(mt->Day > mx) {
+				if (IsLeapYear(mt->Year)) mx++;
+				if (mt->Day > mx) {
 					mt->Day = 1;
 					mt->Month++;
-					if(mt->Month > 12) {
+					if (mt->Month > 12) {
 						mt->Month = 1;
 						mt->Year++;
 					}
@@ -75,7 +75,7 @@ void UnixToMYTIME(int64_t uni, int64_t loc, MYTIME *mt)
 	
 	int leapyear;
 	
-	for(;;) {
+	for (;;) {
 		years++;
 		leapyear = IsLeapYear(years);
 		int32_t tmp = days;
@@ -85,7 +85,7 @@ void UnixToMYTIME(int64_t uni, int64_t loc, MYTIME *mt)
 			break;
 		}
 	}
-	for(;;) {
+	for (;;) {
 		month++;
 		int32_t tmp = days;
 		days -= md[month];

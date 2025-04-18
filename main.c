@@ -115,32 +115,72 @@ void show_message(uint8_t *p)
 /*
  * 計測値を固定小数点形式の文字列に変換してその先頭を返す
  */
-uint8_t *num2str(int n, uint8_t term)
+//~ uint8_t *num2str(int n, uint8_t term)
+//~ {
+    //~ int i, f = 0;
+    //~ if (n < 0) {
+        //~ n = ~n + 1;
+        //~ f = 1;
+    //~ }
+    //~ if ((buf[7] = term) != '\0') {
+        //~ buf[8] = '\0';
+    //~ }
+    //~ for (i = 6; i >= 0; i--) {
+        //~ if (i == 4) buf[i--] = '.';
+        //~ buf[i] = '0' + n % 10;
+        //~ n /= 10;
+        //~ if (n == 0) break;
+    //~ }
+    //~ for (i--; i >= 0; i--) {
+        //~ if (i == 4) buf[i] = '.';
+        //~ else if (i < 3){
+            //~ buf[i] = (f ? '-':' ');
+            //~ break;
+        //~ }
+        //~ else buf[i] = '0';
+    //~ }
+    //~ return &buf[i];
+//~ }
+
+/*
+ * 整数を固定小数点表示する
+ * p : 小数の桁数 0,1,2,3 ...
+ */
+uint8_t *pos0;
+int len0;
+uint8_t *num2str(int16_t n, int16_t p)
 {
-    int i, f = 0;
+    int i;
+    uint8_t f;
+
     if (n < 0) {
-        n = ~n + 1;
-        f = 1;
+	f = '-';
+	n = -n;
+    } else {
+	f = ' ';
     }
-    if ((buf[7] = term) != '\0') {
-        buf[8] = '\0';
+    //~ pos = &buf[sizeof(buf)-1];
+    //~ for (i = sizeof(buf)-2; i >= 3; i--) {
+    for (i = len0; i >= 3; i--) {
+	if (p >= 0) {
+	    if (p == 0) {
+		*--pos0 = '.';
+	    }
+	    p--;
+	}
+	*--pos0 = '0' + n % 10;
+	n /= 10;
+	if (n <= 0) break;
     }
-    for (i = 6; i >= 0; i--) {
-        if (i == 4) buf[i--] = '.';
-        buf[i] = '0' + n % 10;
-        n /= 10;
-        if (n == 0) break;
+    if (p >= 0) {
+	*--pos0 = '.';
+	*--pos0 = '0';
     }
-    for (i--; i >= 0; i--) {
-        if (i == 4) buf[i] = '.';
-        else if (i < 3){
-            buf[i] = (f ? '-':' ');
-            break;
-        }
-        else buf[i] = '0';
-    }
-    return &buf[i];
+    *--pos0 = f;
+    return pos0;
 }
+
+
 
 /*
  * 温度センサーの読み取り
@@ -329,13 +369,15 @@ void main(void)
             if (mt.Second & 3 == 3) {
                 /* 温度は4秒毎に読みだす */
                 temperature = read_lm61();
-                s = num2str(temperature, '\0');
+		pos0 = &buf[7];
+		len0 = 6;
+                s = num2str(temperature/10,1);
                 buf[7] = 0xdf; buf[8] = 'C'; 
                 /* 整数部が１桁の時、直前に表示した末尾の'C'が
                  * 重なってしまうので空白を表示して消す */ 
                 buf[9] = ' '; 
                 buf[10] = 0x00;
-                lcd_puts(0x48, s);     /* ２行目 xx.xx℃ */
+                lcd_puts(0x49, s);     /* ２行目 xx.x℃ */
             }
 
             if (mt.Second & 1) {
@@ -355,7 +397,11 @@ void main(void)
             if (siobuf[0] >= '0' && siobuf[0] <= '9') {
                 /* 数字で始まっていれば時刻補正を行って温度を返す */
                 settime2(atol(siobuf));
-                s = num2str(temperature, '\n');
+		pos0 = &buf[8];
+		len0 = 7;
+                s = num2str(temperature, 2);
+		buf[8] = '\n';
+		buf[9] = '\x00';
                 sci_puts(s);
             }
             else {
