@@ -1,5 +1,7 @@
+h8300ROM_LM61.geany
 *.o
-*.ref
+*.map
 *.mot
+*.ref
 main
 
