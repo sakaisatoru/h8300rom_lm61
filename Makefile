@@ -1,6 +1,7 @@
 PKG = main
 #~ OBJ = mystartup.o main.o lm61.o lcd.o monitorsub.o sci.o data.o
-OBJ = mystartup.o monitor.o main.o time_my.o lcd.o monitorsub.o sci.o data.o
+#~ OBJ = mystartup.o monitor.o main.o time_my.o lcd.o monitorsub.o sci.o data.o
+OBJ = mystartup.o monitor.o main.o time_my.o myprintf.o lcd.o monitorsub.o sci.o
 #OBJ =  main.o
 
 SCRIPT_PREFIX = ./

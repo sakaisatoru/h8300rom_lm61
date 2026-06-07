@@ -35,28 +35,32 @@ int16_t DayOfWeek(int16_t y, int16_t m, int16_t d)
 void IncTime(MYTIME *mt)
 {
 	mt->Second++;
-	if (mt->Second > 59) {
-		mt->Second = 0;
-		mt->Minute++;
-		if (mt->Minute > 59) {
-			mt->Minute = 0;
-			mt->Hour++;
-			if (mt->Hour > 23) {
-				mt->Hour = 0;
-				mt->Day++;
-				int8_t mx = md[mt->Month];
-				if (IsLeapYear(mt->Year)) mx++;
-				if (mt->Day > mx) {
-					mt->Day = 1;
-					mt->Month++;
-					if (mt->Month > 12) {
-						mt->Month = 1;
-						mt->Year++;
-					}
-				}
-			}
+	if (mt->Second <= 59) return;
+	
+	mt->Second = 0;
+	mt->Minute++;
+	if (mt->Minute <= 59) return;
+	
+	mt->Minute = 0;
+	mt->Hour++;
+	if (mt->Hour <= 23) return;
+	
+	mt->Hour = 0;
+	mt->Day++;
+	if (mt->Day <= md[mt->Month]) return;
+
+	if (mt->Month == 2) {
+		if (IsLeapYear(mt->Year)) {
+			if (mt->Day <= 29) return;
 		}
 	}
+
+	mt->Day = 1;
+	mt->Month++;
+	if (mt->Month <= 12) return;
+
+	mt->Month = 1;
+	mt->Year++;
 }
 
 /*

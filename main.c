@@ -37,11 +37,12 @@
 #include "monitor.h"
 #include "lcd.h"
 #include "time_my.h"
+#include "myprintf.h"
 
 /* volatile がないとgccの最適化に引っかかっておかしくなる */
 extern volatile uint8_t bUnixtimeflag;
 
-static uint8_t buf[17];
+static uint8_t buf[40];
 static uint8_t siobuf[17];
 static uint8_t siobufpos;
 static uint8_t siobuf_ready;
@@ -364,20 +365,23 @@ void main(void)
             /* 1秒ごとに表示を更新する */
             bUnixtimeflag = 0;
 	    //~ IncTime(&mt);
-            time2str();
+            //~ time2str();
+	    Sprintf(buf, "% 2d-% 2d(%3s) %02d:%02d\x00",
+		mt.Month, mt.Day, mt.WeekdayName, mt.Hour, mt.Minute);
             lcd_puts(0, buf);
             if (mt.Second & 3 == 3) {
                 /* 温度は4秒毎に読みだす */
                 temperature = read_lm61();
-		pos0 = &buf[7];
-		len0 = 6;
-                s = num2str(temperature/10,1);
-                buf[7] = 0xdf; buf[8] = 'C'; 
-                /* 整数部が１桁の時、直前に表示した末尾の'C'が
-                 * 重なってしまうので空白を表示して消す */ 
-                buf[9] = ' '; 
-                buf[10] = 0x00;
-                lcd_puts(0x49, s);     /* ２行目 xx.x℃ */
+		Sprintf(buf, "% 2.1u\xdfC\0", temperature/10);
+		//~ pos0 = &buf[7];
+		//~ len0 = 6;
+                //~ s = num2str(temperature/10,1);
+                //~ buf[7] = 0xdf; buf[8] = 'C'; 
+                //~ /* 整数部が１桁の時、直前に表示した末尾の'C'が
+                 //~ * 重なってしまうので空白を表示して消す */ 
+                //~ buf[9] = ' '; 
+                //~ buf[10] = 0x00;
+                lcd_puts(0x49, buf);     /* ２行目 xx.x℃ */
             }
 
             if (mt.Second & 1) {
