@@ -24,8 +24,8 @@ _start:
     .short      _gettime
 
 _start_top:
+    mov.w       #_stack, sp				; 最初の命令の実行は保証される
     orc.b       #0x80, ccr              ; DI
-    mov.w       #_stack, sp
     ;
     ; 初期化されないデータは 0 でクリアされる
     ;
@@ -55,7 +55,7 @@ _data_init_l1:
     bra         _data_init_l1
     
 _data_init_l2:
+    jsr		@_main_init
     jsr         @_main
-    jsr         @_monitor
-
-    bra         _start_top
+    orc.b       #0x80, ccr              ; DI
+    bra         _start

@@ -6,11 +6,12 @@ typedef struct {
 			int8_t Month;
 			int8_t Day;
 			int8_t Weekday;
-			char *WeekdayName;
 			int8_t Hour;
 			int8_t Minute;
 			int8_t Second;
-		} MYTIME;
+			char *WeekdayName;
+		//~ } __attribute__((packed)) MYTIME;
+		}  MYTIME;
 		
 int IsLeapYear(int16_t y);
 int16_t DayOfWeek(int16_t y, int16_t m, int16_t d);

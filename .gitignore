@@ -3,5 +3,6 @@ h8300ROM_LM61.geany
 *.map
 *.mot
 *.ref
+*.sym
 main
 

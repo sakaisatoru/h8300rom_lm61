@@ -194,16 +194,17 @@ _int_break_1:
 ;   Timer A handler
 ;       1/4sec で割り込んでカウントアップする
 ;
+.global _bSubSec
 _int_tima:
     push.w      r2
     mov.b       @_bSubSec, r2l          ; bSubSec を 4回数える
     inc.b       r2l
-    mov.b       r2l, @_bSubSec
     and.b       #3, r2l
+    mov.b       r2l, @_bSubSec
     bne         __int_tima_exit
     
-    mov.b       #1, r2l                 ; コロン点滅とかに使うフラグ
-    mov.b       r2l, @_bUnixtimeflag
+    ;~ mov.b       #1, r2l                 ; コロン点滅とかに使うフラグ
+    ;~ mov.b       r2l, @_bUnixtimeflag
 
 	push.l		er0
 	push.l		er1

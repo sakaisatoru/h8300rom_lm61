@@ -2,35 +2,6 @@
  * LM61C による温度計測
  */
 
-/*
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * 
- * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
- * * Redistributions in binary form must reproduce the above
- *   copyright notice, this list of conditions and the following disclaimer
- *   in the documentation and/or other materials provided with the
- *   distribution.
- * * Neither the name of the  nor the names of its
- *   contributors may be used to endorse or promote products derived from
- *   this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
- */
-
 #include <stdint.h>
 #include <string.h>
 #include "iodefine.h"
@@ -48,8 +19,7 @@ static uint8_t siobufpos;
 static uint8_t siobuf_ready;
 static uint8_t mesbuf[17];
 
-//~ static MYTIME mt = {0, 0, 0, 0, NULL, 0, 0, 0};
- MYTIME mt = {0, 0, 0, 0, NULL, 0, 0, 0};
+MYTIME mt; // = {2026, 6, 11, 4, 0, 42, 0, "Thu"};
 
 /*
  * sci 受信割り込み
@@ -114,76 +84,6 @@ void show_message(uint8_t *p)
 
 
 /*
- * 計測値を固定小数点形式の文字列に変換してその先頭を返す
- */
-//~ uint8_t *num2str(int n, uint8_t term)
-//~ {
-    //~ int i, f = 0;
-    //~ if (n < 0) {
-        //~ n = ~n + 1;
-        //~ f = 1;
-    //~ }
-    //~ if ((buf[7] = term) != '\0') {
-        //~ buf[8] = '\0';
-    //~ }
-    //~ for (i = 6; i >= 0; i--) {
-        //~ if (i == 4) buf[i--] = '.';
-        //~ buf[i] = '0' + n % 10;
-        //~ n /= 10;
-        //~ if (n == 0) break;
-    //~ }
-    //~ for (i--; i >= 0; i--) {
-        //~ if (i == 4) buf[i] = '.';
-        //~ else if (i < 3){
-            //~ buf[i] = (f ? '-':' ');
-            //~ break;
-        //~ }
-        //~ else buf[i] = '0';
-    //~ }
-    //~ return &buf[i];
-//~ }
-
-/*
- * 整数を固定小数点表示する
- * p : 小数の桁数 0,1,2,3 ...
- */
-uint8_t *pos0;
-int len0;
-uint8_t *num2str(int16_t n, int16_t p)
-{
-    int i;
-    uint8_t f;
-
-    if (n < 0) {
-	f = '-';
-	n = -n;
-    } else {
-	f = ' ';
-    }
-    //~ pos = &buf[sizeof(buf)-1];
-    //~ for (i = sizeof(buf)-2; i >= 3; i--) {
-    for (i = len0; i >= 3; i--) {
-	if (p >= 0) {
-	    if (p == 0) {
-		*--pos0 = '.';
-	    }
-	    p--;
-	}
-	*--pos0 = '0' + n % 10;
-	n /= 10;
-	if (n <= 0) break;
-    }
-    if (p >= 0) {
-	*--pos0 = '.';
-	*--pos0 = '0';
-    }
-    *--pos0 = f;
-    return pos0;
-}
-
-
-
-/*
  * 温度センサーの読み取り
  * 整数3桁、小数2桁の固定小数点で計測値を返す
  * -30.00 〜 100.00
@@ -197,14 +97,14 @@ int16_t read_lm61_raw(void)
     
     d = 0;
     AD.ADCSR.BYTE = 1;                  /* 単一モード、AN1 */
-    for (i = 0; i <= 7; i++){		/* 8回読んで平均を得る */
+    for (i = 0; i <= 3; i++){		/* 4回読んで平均を得る */
         AD.ADCSR.BIT.ADST = 1;
         while (!AD.ADCSR.BIT.ADF);
         d += AD.ADDRB >> 6;             /* read AN1 (空の下位６ビットを捨てる)*/
         AD.ADCSR.BIT.ADF = 0;
-        wait_ms(10);                    /* delay 10ms */
+        wait_ms(5);                    /* delay 5ms */
     }
-    return d >> 3;                      /* 平均を得る */
+    return d >> 2;                      /* 平均を得る */
 }
 
 void init_lm61(void)
@@ -265,83 +165,39 @@ int64_t atol(uint8_t *b)
     return l;
 }
 
-/*
- * 整数を文字に変換してバッファに格納する。消費したバッファの次を返す。
- */
-char *itos(uint16_t n, uint8_t *b, int digit)
-{
-    uint8_t b2[6], *pos;
-    int i;
-    pos = &b2[5];
-    *pos-- = '\0';
-    
-    for (i=0; i < digit; i++) {
-        *pos-- = (n % 10 +'0');
-        n = n / 10;
-    }
-    while (*++pos != '\0') {
-        *b++ = *pos;
-    }
-    return b;
-}
-
 void settime2(int64_t uni)
 {
     UnixToMYTIME(uni, 9*60*60, &mt); 
 }
 
-void time2str(void)
-{
-    uint8_t *p, *p2;
-    
-    // mm-dd(mon) hh:mm
-    p2 = (uint8_t*)mt.WeekdayName;
-    p = buf;
-    p = itos((uint16_t)mt.Month, p, 2);
-    *p++ = '-';
-    p = itos((uint16_t)mt.Day, p, 2);
-    *p++ = '(';
-    *p++ = *p2++;
-    *p++ = *p2++;
-    *p++ = *p2;
-    *p++ = ')';
-    //~ *p++ = ' ';
-    *p++ = ' ';
-    p = itos((uint16_t)mt.Hour, p, 2);
-    *p++ = (mt.Second & 1) ? ':':' ';
-    p = itos((uint16_t)mt.Minute, p, 2);
-    *p = '\0';
-}    
-
-
 /*
- * メインループ
+ * main() に先立って呼ばれる初期化ルーチン
  */
-void main(void)
+void main_init(void)
 {
-    uint8_t c, *s, *mespos;
-    int pos;
-    int16_t temperature;
-    
     DI();
     AD.ADCSR.BYTE = 8;          /* A/D 割り込み無、単一モード 70ステート */
 
-    IO.PCR8 = 0xff;             /* ポート８　出力に設定                   */
-    IO.PMR5.BYTE = 0;           /* ポート５　汎用ポート                   */
-    IO.PCR5 = 0;                /*          全ビット入力                  */
-    IO.PUCR5.BYTE = 0x3f;       /*              全ビット    プルアップ   */
+    IO.PCR8 = 0xff;             /* ポート８ 出力に設定		*/
+    IO.PMR5.BYTE = 0;           /* ポート５ 汎用ポート		*/
+    IO.PCR5 = 0;                /*        全ビット入力		*/
+    IO.PUCR5.BYTE = 0x3f;       /*        全ビットプルアップ		*/
 
-    TA.TMA.BIT.CKSO = 4;        /* タイマーA 外部出力 1kHz              */
-    TA.TMA.BIT.CKSI = 0x0a;     /* 時計用タイムベース、0.25s間隔        */
+    TA.TMA.BIT.CKSO = 4;        /* タイマーA 外部出力 1kHz		*/
+    TA.TMA.BIT.CKSI = 0x0a;     /* 時計用タイムベース、0.25s間隔	*/
 
-    IENR1.BIT.IENTA = 1;        /* タイマーA 割り込み有効                 */
+    IENR1.BIT.IENTA = 1;        /* タイマーA 割り込み有効		*/
     
     sci_init();
     /* sci3 を受信割り込みに切替 */
     setvector(VECTOR_SCI3, sci_recv_intr);
     SCI3.SCR3.BYTE |= 0x70;         /* 受信割り込み, 送受信 */
     
-    settime2(0);
+    settime2(1781100167);
+
+    /* sci3 受信割り込み周りの初期化 */
+    siobufpos = 0;
+    siobuf_ready = 0;
     EI();
     
     i2c_setup();
@@ -350,63 +206,59 @@ void main(void)
     init_lm61();    /* lcd の 時間稼ぎ兼用 */
     //~ wait_ms(2); /* about 2mS */
     lcd_puts(0, "H8/Tiny Ready.");
-    pos = 0;
+}
 
-    /* sci3 受信割り込み周りの初期化 */
-    siobufpos = 0;
-    siobuf_ready = 0;
-    
+/*
+ * メインループ
+ */
+extern uint8_t bSubSec;
+void main(void)
+{
+    uint8_t c, *s, *mespos;
+    int pos;
+    int16_t temperature;
+
+    pos = 0;
     /* メッセージバッファ初期化 */
     mesbuf[0] = '\0';
     
     temperature = read_lm61();
     for (;;) {
-        if (bUnixtimeflag) {
-            /* 1秒ごとに表示を更新する */
-            bUnixtimeflag = 0;
-	    //~ IncTime(&mt);
-            //~ time2str();
-	    Sprintf(buf, "% 2d-% 2d(%3s) %02d:%02d\x00",
-		mt.Month, mt.Day, mt.WeekdayName, mt.Hour, mt.Minute);
-            lcd_puts(0, buf);
-            if (mt.Second & 3 == 3) {
-                /* 温度は4秒毎に読みだす */
-                temperature = read_lm61();
-		Sprintf(buf, "% 2.1u\xdfC\0", temperature/10);
-		//~ pos0 = &buf[7];
-		//~ len0 = 6;
-                //~ s = num2str(temperature/10,1);
-                //~ buf[7] = 0xdf; buf[8] = 'C'; 
-                //~ /* 整数部が１桁の時、直前に表示した末尾の'C'が
-                 //~ * 重なってしまうので空白を表示して消す */ 
-                //~ buf[9] = ' '; 
-                //~ buf[10] = 0x00;
-                lcd_puts(0x49, buf);     /* ２行目 xx.x℃ */
-            }
+	asm volatile ("sleep");
+	//~ if (!bSubSec) {
+	if (bSubSec & 1) {
+	    Sprintf(buf, "% 2d-% 2d(%s) %02d%c%02d",
+			mt.Month, mt.Day, mt.WeekdayName,
+			mt.Hour,  (bSubSec == 1)?':':' ', mt.Minute);
+	    lcd_puts(0, buf);
+	}
 
-            if (mt.Second & 1) {
-                /* １秒おきにメッセージ表示を更新する */
-                show_message(mespos);
-                if (*mespos == '\0' || mespos > &mesbuf[sizeof(mesbuf)-1]){
-                    mespos = mesbuf;
-                }
-                else {
-                    mespos++;
-                }
-            }
-        }
-
+	if (mt.Second & 3 == 3) {
+	    /* 温度は4秒毎に読みだす */
+	    temperature = read_lm61();
+	    Sprintf(buf, "%5.2u%cC", temperature, 0xdf);
+	    lcd_puts(0x49, buf);     /* ２行目 xx.x℃ */
+	}
+#if 0
+	if (mt.Second & 1) {
+	    /* １秒おきにメッセージ表示を更新する */
+	    show_message(mespos);
+	    if (*mespos == '\0' || mespos > &mesbuf[sizeof(mesbuf)-1]){
+		mespos = mesbuf;
+	    }
+	    else {
+		mespos++;
+	    }
+	}
+#endif
+#if 1
         if (siobuf_ready) {
             /* 受信バッファにデータが揃っていたら読みだして処理する */
             if (siobuf[0] >= '0' && siobuf[0] <= '9') {
                 /* 数字で始まっていれば時刻補正を行って温度を返す */
                 settime2(atol(siobuf));
-		pos0 = &buf[8];
-		len0 = 7;
-                s = num2str(temperature, 2);
-		buf[8] = '\n';
-		buf[9] = '\x00';
-                sci_puts(s);
+		Sprintf(buf, "%4.2u", temperature);
+                sci_puts(buf);
             }
             else {
                 /* 文字列を受信していればメッセージバッファを更新する */
@@ -415,6 +267,6 @@ void main(void)
             }
             siobuf_ready = 0;
         }
-        
+#endif        
     }
 }

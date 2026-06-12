@@ -13,13 +13,16 @@ CC = $(TOOLS_PREFIX)h8300-elf-gcc
 AS = $(TOOLS_PREFIX)h8300-elf-as
 OBJCOPY = $(TOOLS_PREFIX)h8300-elf-objcopy
 OBJDUMP = $(TOOLS_PREFIX)h8300-elf-objdump
+NM		= $(TOOLS_PREFIX)h8300-elf-nm
 
 all: $(PKG).mot Makefile
 
 $(PKG).mot: $(PKG)
 	$(OBJCOPY) -O srec $< $@
 #~ 	$(OBJDUMP) -D -S -s -mh8300hn $< > $<.ref
-	$(OBJDUMP) -D -S -mh8300hn $< > $<.ref
+	$(OBJDUMP) -d -S -h -t -mh8300hn $< > $<.ref
+#~ 	$(OBJDUMP) -h  $< > $<.ref2
+#~ 	$(NM) -n -S $< > $<.sym
 
 $(PKG): $(OBJ)
 	$(CC)  -o $@  -T $(SCRIPT_PREFIX)3694f.x -nostartfiles -nostdlib $(OBJ) $(LIBPATH)libgcc.a 
@@ -30,7 +33,7 @@ $(PKG): $(OBJ)
 	$(AS) -o $@ $<
 
 .c.o:
-	$(CC) -isystem /usr/local/h8300-elf/include -Os -w -mrelax -g -o $@ -c -mh -mn $<
+	$(CC) -isystem /usr/local/h8300-elf/include -Os -w -mrelax -g -o $@ -c -mh -mn $< -Wl,-Map=$<.map,--cref
 
 clean:
 	rm -f $(OBJ) $(PKG)

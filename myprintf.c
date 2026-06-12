@@ -14,14 +14,14 @@ uint8_t *Sprintf(uint8_t *output, uint8_t *format, ...)
 	va_list ap;
 	union {
 		struct {
-			int ctx:1;
-			int period:1;
-			int zero:1;
-			int sign:1;
-			int minus:1;
-			int :3;
-			unsigned int col:4;
-			unsigned int subcol:4;
+			uint16_t ctx:1;
+			uint16_t period:1;
+			uint16_t zero:1;
+			uint16_t sign:1;
+			uint16_t minus:1;
+			uint16_t :3;
+			uint16_t col:4;
+			uint16_t subcol:4;
 		} bit;
 		uint16_t clear;
 	} flags;
@@ -45,9 +45,8 @@ uint8_t *Sprintf(uint8_t *output, uint8_t *format, ...)
 						flags.bit.zero = 1;
 						break;
 					}
-				case '1':	case '2':	case '3':
-				case '4':	case '5':	case '6':	case '7':
-				case '8':	case '9':
+				case '1':	case '2':	case '3':	case '4':
+				case '5':	case '6':	case '7':	case '8':	case '9':
 					if (flags.bit.period) {
 						flags.bit.subcol *= 10;
 						flags.bit.subcol += (*format-'0');

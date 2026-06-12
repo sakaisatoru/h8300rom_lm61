@@ -520,7 +520,7 @@ void mon_help( void )
  */
 void monitor( void )
 {
-    DI();                       
+    //~ DI();                       
 
     //~ AD.ADCSR.BYTE = 8;          /* A/D 割り込み無、単一モード 70ステート */
 
@@ -529,12 +529,12 @@ void monitor( void )
     //~ IO.PCR5 = 0;                /*         全ビット入力              */
     //~ IO.PUCR5.BYTE = 0x3f;       /*         全ビット    プルアップ     */
 
-    TA.TMA.BIT.CKSO = 4;        /* タイマーA 外部出力 1kHz              */
-    TA.TMA.BIT.CKSI = 0x0a;     /* 時計用タイムベース、0.25s間隔        */
+    //~ TA.TMA.BIT.CKSO = 4;        /* タイマーA 外部出力 1kHz              */
+    //~ TA.TMA.BIT.CKSI = 0x0a;     /* 時計用タイムベース、0.25s間隔        */
 
-    IENR1.BIT.IENTA = 1;        /* タイマーA 割り込み有効                 */
+    //~ IENR1.BIT.IENTA = 1;        /* タイマーA 割り込み有効                 */
 
-    sci_init();
+    //~ sci_init();
     EI();
     sci_puts(   "H8/300H 3694F Monitor\r\n"    \
                 "2014/06/13 Sakai Satoru\r\n"    );
