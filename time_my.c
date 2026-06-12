@@ -47,6 +47,8 @@ void IncTime(MYTIME *mt)
 	
 	mt->Hour = 0;
 	mt->Day++;
+	mt->Weekday = DayOfWeek(mt->Year, (int16_t)mt->Month, (int16_t)mt->Day);
+	mt->WeekdayName = weekday[mt->Weekday];
 	if (mt->Day <= md[mt->Month]) return;
 
 	if (mt->Month == 2) {

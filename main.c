@@ -257,7 +257,7 @@ void main(void)
             if (siobuf[0] >= '0' && siobuf[0] <= '9') {
                 /* 数字で始まっていれば時刻補正を行って温度を返す */
                 settime2(atol(siobuf));
-		Sprintf(buf, "%4.2u", temperature);
+		Sprintf(buf, "%5.2u", temperature);
                 sci_puts(buf);
             }
             else {
