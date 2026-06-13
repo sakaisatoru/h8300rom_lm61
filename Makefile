@@ -26,7 +26,8 @@ $(PKG).mot: $(PKG)
 
 $(PKG): $(OBJ)
 	$(CC)  -o $@  -T $(SCRIPT_PREFIX)3694f.x -nostartfiles -nostdlib $(OBJ) $(LIBPATH)libgcc.a 
-	# /usr/local/h8300-elf/h8300-elf/lib/h8300h/normal/libstdc++.a
+
+# /usr/local/h8300-elf/h8300-elf/lib/h8300h/normal/libstdc++.a
 #~ 	$(CC)  -o $@  -T $(SCRIPT_PREFIX)3694f.x -nostartfiles -nostdlib $(OBJ) 
 
 .s.o:

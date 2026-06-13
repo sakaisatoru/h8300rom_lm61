@@ -1,5 +1,5 @@
 /*
- * LM61C による温度計測
+ * LM61C による温度計測付き時計
  */
 
 #include <stdint.h>
@@ -10,16 +10,26 @@
 #include "time_my.h"
 #include "myprintf.h"
 
+enum {
+    COMMAND_SETTIME	= 0x11,
+    COMMAND_GETINFO	= 0x12,
+    COMMAND_SHOWMODE	= 0x13,
+    COMMAND_MSGON	= 0x14,
+    SHOWMODE_FIX	= 0x01,
+    SHOWMODE_SCROLL	= 0x02
+};
+
 /* volatile がないとgccの最適化に引っかかっておかしくなる */
 extern volatile uint8_t bUnixtimeflag;
 
-static uint8_t buf[40];
-static uint8_t siobuf[17];
+static uint8_t buf[20];
+static uint8_t siobuf[40];
 static uint8_t siobufpos;
 static uint8_t siobuf_ready;
-static uint8_t mesbuf[17];
+static uint8_t mesbuf[40], *mespos;
+static uint8_t showmode;
 
-MYTIME mt; // = {2026, 6, 11, 4, 0, 42, 0, "Thu"};
+MYTIME mt; 
 
 /*
  * sci 受信割り込み
@@ -31,18 +41,22 @@ __attribute__ ((interrupt_handler)) void sci_recv_intr(void)
         if (SCI3.SSR.BIT.RDRF) {
             /* 受信バッファフル */
             c = SCI3.RDR;
-            if (c == '\n') {
-                siobuf[siobufpos] = '\0';
-                siobufpos = 0;
+	    if (c == COMMAND_GETINFO) {
+		siobuf[siobufpos] = c;
+		siobufpos = 0;
                 siobuf_ready = 1;
-            }
-            else {
-                if (siobufpos < sizeof(siobuf) - 1) {
-                    siobuf[siobufpos++] = c;
-                }
-            }
-        }
-        else {
+	    } else {
+		if (c == '\n') {
+		    siobuf[siobufpos] = '\0';
+		    siobufpos = 0;
+		    siobuf_ready = 1;
+		} else {
+		    if (siobufpos < sizeof(siobuf) - 1) {
+			siobuf[siobufpos++] = c;
+		    }
+		}
+	    }
+        } else {
             /* 受信エラー */
             ;
         }
@@ -52,36 +66,37 @@ __attribute__ ((interrupt_handler)) void sci_recv_intr(void)
 /*
  * 受信バッファの内容をメッセージバッファにコピーする
  */
-void bufcopy(void)
+void bufcopy(uint8_t *s)
 {
-    uint8_t *d, *s;
+    uint8_t *d;
     
     d = mesbuf;
-    s = siobuf;
-    while (d <= &mesbuf[sizeof(mesbuf)-1]) {
-        *d++ = *s++;
+    for (int i = 0; i < sizeof(mesbuf); i++) {
+	*d++ = *s++;
+	if (*(s-1) == '\0') break;
     }
+    mesbuf[sizeof(mesbuf)-1] = '\0';
 }
 
 /*
- * LCDのスクロール領域(２行目左から８文字分)に文字列を表示する。
+ * LCDのスクロール領域に文字列を表示する。
  * メッセージバッファ末端に達した場合は先頭に戻る。
  */
-void show_message(uint8_t *p)
+void show_message()
 {
-    uint8_t i;
-    lcd_command( 0x80 | 0x40 );
-    for (i = 0; i < 8; i++) {
+    uint8_t *p = mespos;
+    lcd_command(0x80 | 0x40);
+    for (int i = 0; i < 16; i++) {
         if (*p == '\0' || p > &mesbuf[sizeof(mesbuf)-1]) {
-            lcd_data( ' ' );
             p = mesbuf;
         }
         else {
             lcd_data(*p++);
         }
     }
+    mespos++;
+    if (*mespos == '\0') mespos = mesbuf;
 }
-
 
 /*
  * 温度センサーの読み取り
@@ -214,18 +229,12 @@ void main_init(void)
 extern uint8_t bSubSec;
 void main(void)
 {
-    uint8_t c, *s, *mespos;
-    int pos;
-    int16_t temperature;
-
-    pos = 0;
     /* メッセージバッファ初期化 */
     mesbuf[0] = '\0';
+    showmode = SHOWMODE_SCROLL;
     
-    temperature = read_lm61();
     for (;;) {
 	asm volatile ("sleep");
-	//~ if (!bSubSec) {
 	if (bSubSec & 1) {
 	    Sprintf(buf, "% 2d-% 2d(%s) %02d%c%02d",
 			mt.Month, mt.Day, mt.WeekdayName,
@@ -233,40 +242,39 @@ void main(void)
 	    lcd_puts(0, buf);
 	}
 
-	if (mt.Second & 3 == 3) {
-	    /* 温度は4秒毎に読みだす */
-	    temperature = read_lm61();
-	    Sprintf(buf, "%5.2u%cC", temperature, 0xdf);
-	    lcd_puts(0x49, buf);     /* ２行目 xx.x℃ */
-	}
-#if 0
-	if (mt.Second & 1) {
-	    /* １秒おきにメッセージ表示を更新する */
-	    show_message(mespos);
-	    if (*mespos == '\0' || mespos > &mesbuf[sizeof(mesbuf)-1]){
-		mespos = mesbuf;
-	    }
-	    else {
-		mespos++;
+	if (!bSubSec) {
+	    /* １秒毎にメッセージ表示を更新する */
+	    if (mesbuf[0] == '\0') {
+		Sprintf(buf, "         %5.2u\xdf\x43", read_lm61());
+		lcd_puts(0x40, buf);     /* ２行目 xx.x℃ */
+	    } else {
+		show_message();
 	    }
 	}
-#endif
-#if 1
+
         if (siobuf_ready) {
             /* 受信バッファにデータが揃っていたら読みだして処理する */
-            if (siobuf[0] >= '0' && siobuf[0] <= '9') {
-                /* 数字で始まっていれば時刻補正を行って温度を返す */
-                settime2(atol(siobuf));
-		Sprintf(buf, "%5.2u", temperature);
-                sci_puts(buf);
-            }
-            else {
-                /* 文字列を受信していればメッセージバッファを更新する */
-                bufcopy();
-                mespos = mesbuf;
+	    switch (siobuf[0]) {
+		case COMMAND_SETTIME:
+		    settime2(atol(&siobuf[1]));
+		    break;
+		case COMMAND_GETINFO:
+		    Sprintf(buf, "%5.2u\n", read_lm61());
+		    sci_puts(buf);
+		    break;
+		case COMMAND_MSGON:
+		    if (siobuf[1] == '\0') {
+			mesbuf[0] = '\0';
+		    } else {
+			bufcopy(&siobuf[1]);
+			mespos = mesbuf;
+		    }
+		    break;
+		case COMMAND_SHOWMODE:
+		    showmode = siobuf[1];
+		    break;
             }
             siobuf_ready = 0;
         }
-#endif        
     }
 }
