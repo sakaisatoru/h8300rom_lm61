@@ -41,19 +41,13 @@ __attribute__ ((interrupt_handler)) void sci_recv_intr(void)
         if (SCI3.SSR.BIT.RDRF) {
             /* 受信バッファフル */
             c = SCI3.RDR;
-	    if (c == COMMAND_GETINFO) {
-		siobuf[siobufpos] = c;
+	    if (c == '\n') {
+		siobuf[siobufpos] = '\0';
 		siobufpos = 0;
-                siobuf_ready = 1;
+		siobuf_ready = 1;
 	    } else {
-		if (c == '\n') {
-		    siobuf[siobufpos] = '\0';
-		    siobufpos = 0;
-		    siobuf_ready = 1;
-		} else {
-		    if (siobufpos < sizeof(siobuf) - 1) {
-			siobuf[siobufpos++] = c;
-		    }
+		if (siobufpos < sizeof(siobuf) - 1) {
+		    siobuf[siobufpos++] = c;
 		}
 	    }
         } else {
@@ -86,16 +80,25 @@ void show_message()
 {
     uint8_t *p = mespos;
     lcd_command(0x80 | 0x40);
-    for (int i = 0; i < 16; i++) {
-        if (*p == '\0' || p > &mesbuf[sizeof(mesbuf)-1]) {
-            p = mesbuf;
-        }
-        else {
-            lcd_data(*p++);
-        }
+    if (showmode == SHOWMODE_SCROLL) {
+	for (int i = 0; i < 16; i++) {
+	    if (*p == '\0' || p > &mesbuf[sizeof(mesbuf)-1]) {
+		p = mesbuf;
+	    }
+	    lcd_data(*p++);
+	}
+	mespos++;
+	if (*mespos == '\0') mespos = mesbuf;
+    } else {
+	for (int i = 0; i < 16; i++) {
+	    if (*p == '\0' || p > &mesbuf[sizeof(mesbuf)-1]) {
+		lcd_data(' ');
+	    }
+	    else {
+		lcd_data(*p++);
+	    }
+	}
     }
-    mespos++;
-    if (*mespos == '\0') mespos = mesbuf;
 }
 
 /*
@@ -236,7 +239,7 @@ void main(void)
     for (;;) {
 	asm volatile ("sleep");
 	if (bSubSec & 1) {
-	    Sprintf(buf, "% 2d-% 2d(%s) %02d%c%02d",
+	    Sprintf(buf, "% 2d-% 2d(%s) % 2d%c%02d",
 			mt.Month, mt.Day, mt.WeekdayName,
 			mt.Hour,  (bSubSec == 1)?':':' ', mt.Minute);
 	    lcd_puts(0, buf);
